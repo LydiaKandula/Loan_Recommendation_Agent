@@ -1,6 +1,5 @@
 function Dashboard() {
   const logs = [
-    { user: "Ravi", income: "$50,000", status: "Personal Loan" },
     { user: "Sita", income: "$70,000", status: "Home Loan" },
     { user: "Amit", income: "$120,000", status: "All Loans" },
     { user: "Priya", income: "$85,000", status: "Auto Loan" },
