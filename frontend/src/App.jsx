@@ -1,23 +1,24 @@
+import { useState } from "react";
 import InputForm from "./components/InputForm";
 import ChatUI from "./components/ChatUI";
 import Dashboard from "./components/Dashboard";
 import "./App.css";
 
 function App() {
+  const [applications, setApplications] = useState([]);
+
   return (
     <div className="app-container">
 
-      {/* Header */}
       <div className="header">
         <h1>Loan Recommendation Agent</h1>
       </div>
 
-      {/* Main Content */}
       <div className="main-content">
         <div className="grid-layout">
 
           <div className="card">
-            <InputForm />
+            <InputForm setApplications={setApplications} />
           </div>
 
           <div className="card">
@@ -25,7 +26,7 @@ function App() {
           </div>
 
           <div className="card full-width">
-            <Dashboard />
+            <Dashboard applications={applications} />
           </div>
 
         </div>
