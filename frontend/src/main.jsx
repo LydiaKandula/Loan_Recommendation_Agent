@@ -4,14 +4,8 @@ import App from "./App";
 import "./index.css";
 import "./App.css";
 
-const root = document.getElementById("root");
-
-try {
-  ReactDOM.createRoot(root).render(
-    <React.StrictMode>
-      <App />
-    </React.StrictMode>
-  );
-} catch (error) {
-  root.innerHTML = `<div style="color: red; padding: 20px;">Error: ${error.message}</div>`;
-}
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
