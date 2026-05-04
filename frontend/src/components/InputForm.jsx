@@ -1,32 +1,51 @@
 import { useState } from "react";
+import { startAgent } from "../services/api";
 
-function InputForm() {
+function InputForm({ setApplications }) {
   const [income, setIncome] = useState("");
   const [creditScore, setCreditScore] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
-  const handleSubmit = () => {
-    if (income && creditScore) {
+  const handleSubmit = async () => {
+    if (!income || !creditScore) {
+      alert("⚠️ Please fill in all fields");
+      return;
+    }
+
+    try {
+      const response = await startAgent({
+        income: Number(income),
+        credit_score: Number(creditScore),
+      });
+
+      setApplications((prev) => [
+        ...prev,
+        {
+          user: "You",
+          income: `$${income}`,
+          status: response.message,
+        },
+      ]);
+
       setSubmitted(true);
       setIncome("");
       setCreditScore("");
-    } else {
-      alert("⚠️ Please fill in all fields");
+
+    } catch (error) {
+      alert("Backend error ❌");
     }
   };
 
   return (
     <div>
       <h2>Loan Application</h2>
-      <p style={{ color: "var(--text-light)", marginBottom: "20px" }}>
-        Enter your financial details to get a loan recommendation
-      </p>
+
+      <p>Enter your financial details</p>
 
       <div className="form-group">
         <label>Annual Income</label>
         <input
           type="number"
-          placeholder="Enter annual income (e.g., 50000)"
           value={income}
           onChange={(e) => setIncome(e.target.value)}
         />
@@ -36,19 +55,14 @@ function InputForm() {
         <label>Credit Score</label>
         <input
           type="number"
-          placeholder="Enter credit score (e.g., 750)"
           value={creditScore}
           onChange={(e) => setCreditScore(e.target.value)}
         />
       </div>
 
-      <button onClick={handleSubmit}>Submit Application</button>
+      <button onClick={handleSubmit}>Submit</button>
 
-      {submitted && (
-        <div className="success-message">
-          ✅ Application submitted successfully!
-        </div>
-      )}
+      {submitted && <p>✅ Submitted successfully</p>}
     </div>
   );
 }
