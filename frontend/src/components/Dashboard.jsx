@@ -1,21 +1,43 @@
-function Dashboard({ applications }) {
+import { useState } from "react";
+import InputForm from "./InputForm";
+import ChatUI from "./ChatUI";
+
+function Dashboard() {
+  const [userData, setUserData] = useState(null);
+
   return (
-    <div>
-      <h2>Application Dashboard</h2>
+    <div className="app-container">
 
-      {applications.length === 0 ? (
-        <p>No applications yet</p>
-      ) : (
-        applications.map((app, index) => (
-          <div key={index}>
-            <h3>{app.user}</h3>
-            <p>{app.income}</p>
-            <p>{app.status}</p>
+      {/* 🔷 Top Navigation Bar */}
+      <div className="topbar">
+        <h2>🏦 Loan Advisor</h2>
+      </div>
+
+      {/* 🔷 Main Content */}
+      <div className="content">
+
+        {/* 📝 Show Form First */}
+        {!userData ? (
+          <InputForm onSubmitSuccess={setUserData} />
+        ) : (
+          <div className="dashboard-grid">
+
+            {/* ✅ Success Card */}
+            <div className="card success-card">
+              <h3>✅ Application Submitted</h3>
+              <p>Your details have been saved successfully.</p>
+              <p>Now you can chat with our AI assistant for recommendations.</p>
+            </div>
+
+            {/* 🤖 Chat Section */}
+            <div className="card">
+              <ChatUI userData={userData} />
+            </div>
+
           </div>
-        ))
-      )}
+        )}
 
-      <p>Total Applications: {applications.length}</p>
+      </div>
     </div>
   );
 }
