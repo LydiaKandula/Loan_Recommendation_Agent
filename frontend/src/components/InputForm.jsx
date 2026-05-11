@@ -1,68 +1,56 @@
 import { useState } from "react";
-import { startAgent } from "../services/api";
 
-function InputForm({ setApplications }) {
-  const [income, setIncome] = useState("");
-  const [creditScore, setCreditScore] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+function InputForm({ onSubmitSuccess }) {
 
-  const handleSubmit = async () => {
-    if (!income || !creditScore) {
-      alert("⚠️ Please fill in all fields");
-      return;
-    }
+  const [form, setForm] = useState({
+    income: "",
+    credit_score: "",
+    loan_amount: "",
+    purpose: "",
+    tenure: ""
+  });
 
-    try {
-      const response = await startAgent({
-        income: Number(income),
-        credit_score: Number(creditScore),
-      });
-
-      setApplications((prev) => [
-        ...prev,
-        {
-          user: "You",
-          income: `$${income}`,
-          status: response.message,
-        },
-      ]);
-
-      setSubmitted(true);
-      setIncome("");
-      setCreditScore("");
-
-    } catch (error) {
-      alert("Backend error ❌");
-    }
+  const handleSubmit = () => {
+    onSubmitSuccess(form);
   };
 
   return (
-    <div>
-      <h2>Loan Application</h2>
+    <div className="card form-card">
 
-      <p>Enter your financial details</p>
+      <h2>📋 Loan Application</h2>
 
-      <div className="form-group">
-        <label>Annual Income</label>
-        <input
-          type="number"
-          value={income}
-          onChange={(e) => setIncome(e.target.value)}
-        />
+      <div className="form-grid">
+
+        <input placeholder="Monthly Income"
+          onChange={(e)=>setForm({...form, income:e.target.value})}/>
+
+        <input placeholder="Credit Score (300-900)"
+          onChange={(e)=>setForm({...form, credit_score:e.target.value})}/>
+
+        <input placeholder="Loan Amount"
+          onChange={(e)=>setForm({...form, loan_amount:e.target.value})}/>
+
+        <select onChange={(e)=>setForm({...form, purpose:e.target.value})}>
+          <option>Select Purpose</option>
+          <option>Home</option>
+          <option>Personal</option>
+          <option>Education</option>
+          <option>Vehicle</option>
+        </select>
+
+        <select onChange={(e)=>setForm({...form, tenure:e.target.value})}>
+          <option>Select Tenure</option>
+          <option value="12">12 Months</option>
+          <option value="24">24 Months</option>
+          <option value="36">36 Months</option>
+        </select>
+
       </div>
 
-      <div className="form-group">
-        <label>Credit Score</label>
-        <input
-          type="number"
-          value={creditScore}
-          onChange={(e) => setCreditScore(e.target.value)}
-        />
-      </div>
+      <button className="primary-btn" onClick={handleSubmit}>
+        Submit Application
+      </button>
 
-      <button onClick={handleSubmit}>Submit</button>
-
-      {submitted && <p>✅ Submitted successfully</p>}
     </div>
   );
 }
