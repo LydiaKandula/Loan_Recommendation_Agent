@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, Text, ForeignKey, String
 from app.core.database import Base
 
 class Interaction(Base):
@@ -7,8 +7,9 @@ class Interaction(Base):
 
     id = Column(Integer, primary_key=True)
 
-    user_id = Column(Integer)
+    user_id = Column(Integer, ForeignKey("users.id"))
 
-    user_message = Column(String)
+    user_message = Column(Text)
+    ai_response = Column(Text)
 
-    bot_response = Column(String)
+    communication_type = Column(String)
