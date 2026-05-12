@@ -1,117 +1,104 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
-function ChatUI({ userData }) {
+function ChatUI() {
 
-  const [msg, setMsg] = useState("");
+  const [message, setMessage] = useState("");
   const [chat, setChat] = useState([]);
 
-  // 🔊 Speak AI response
-  const speak = (text) => {
-    const speech = new SpeechSynthesisUtterance(text);
-    speech.lang = "en-US";
-    window.speechSynthesis.speak(speech);
+  const chatEndRef = useRef(null);
+
+  const sendMessage = () => {
+
+    if (!message.trim()) return;
+
+    const responses = [
+      "You are eligible for a Home Loan.",
+      "Your credit score looks excellent.",
+      "You qualify for multiple loan options.",
+      "Application looks good.",
+    ];
+
+    const randomResponse =
+      responses[Math.floor(Math.random() * responses.length)];
+
+    setChat([
+      ...chat,
+      {
+        user: message,
+        bot: randomResponse,
+      },
+    ]);
+
+    setMessage("");
   };
 
-  // 🎤 Voice Input (FIXED)
-  const startVoice = () => {
-
-    if (!("webkitSpeechRecognition" in window)) {
-      alert("Voice not supported. Please use Google Chrome.");
-      return;
-    }
-
-    const recognition = new window.webkitSpeechRecognition();
-
-    recognition.lang = "en-US";
-    recognition.continuous = false;
-    recognition.interimResults = false;
-
-    recognition.onstart = () => {
-      console.log("🎤 Listening...");
-    };
-
-    recognition.onresult = (event) => {
-      const text = event.results[0][0].transcript;
-      console.log("Voice Input:", text);
-      setMsg(text); // fill input box
-    };
-
-    recognition.onerror = (err) => {
-      console.error("Voice error:", err);
-      alert("Voice error. Try again.");
-    };
-
-    recognition.start();
-  };
-
-  // 💬 Send message to backend
-  const sendMessage = async () => {
-
-    if (!msg.trim()) return;
-
-    try {
-      const res = await fetch("http://127.0.0.1:8000/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          ...userData,
-          question: msg
-        })
-      });
-
-      const data = await res.json();
-
-      const reply = data.reply || "No response from AI";
-
-      setChat(prev => [
-        ...prev,
-        { sender: "user", text: msg },
-        { sender: "bot", text: reply }
-      ]);
-
-      speak(reply); // 🔊 speak response
-
-      setMsg("");
-
-    } catch (error) {
-      console.error("API Error:", error);
-      alert("Backend not responding");
-    }
-  };
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
+  }, [chat]);
 
   return (
-    <div className="chat-ui">
+    <div>
 
-      <h3>🤖 Loan Assistant</h3>
+      <h2>Chat Assistant</h2>
 
-      {/* Chat messages */}
+      <p className="subtitle">
+        Ask anything about loans
+      </p>
+
       <div className="chat-box">
-        {chat.map((c, i) => (
-          <div
-            key={i}
-            className={c.sender === "user" ? "chat-user" : "chat-bot"}
-          >
-            {c.text}
-          </div>
-        ))}
+
+        {chat.length === 0 ? (
+
+          <p className="empty-chat">
+            Start conversation...
+          </p>
+
+        ) : (
+
+          chat.map((item, index) => (
+
+            <div key={index}>
+
+              <div className="user-row">
+                <div className="user-message">
+                  {item.user}
+                </div>
+              </div>
+
+              <div className="bot-row">
+                <div className="bot-message">
+                  {item.bot}
+                </div>
+              </div>
+
+            </div>
+          ))
+        )}
+
+        <div ref={chatEndRef}></div>
+
       </div>
 
-      {/* Input + Buttons */}
       <div className="chat-input">
 
         <input
-          value={msg}
-          onChange={(e) => setMsg(e.target.value)}
-          placeholder="Ask about loan..."
+          type="text"
+          placeholder="Ask about loans..."
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          onKeyDown={(e) =>
+            e.key === "Enter" && sendMessage()
+          }
         />
 
-        <button onClick={startVoice}>🎤</button>
-
-        <button onClick={sendMessage}>Send</button>
+        <button onClick={sendMessage}>
+          Send
+        </button>
 
       </div>
+
     </div>
   );
 }

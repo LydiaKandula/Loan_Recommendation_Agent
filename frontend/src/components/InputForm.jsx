@@ -1,53 +1,62 @@
 import { useState } from "react";
 
-function InputForm({ onSubmitSuccess }) {
+function InputForm() {
 
-  const [form, setForm] = useState({
-    income: "",
-    credit_score: "",
-    loan_amount: "",
-    purpose: "",
-    tenure: ""
-  });
+  const [name, setName] = useState("");
+  const [income, setIncome] = useState("");
+  const [creditScore, setCreditScore] = useState("");
 
   const handleSubmit = () => {
-    onSubmitSuccess(form);
+
+    if (!name || !income || !creditScore) {
+      alert("Please fill all fields");
+      return;
+    }
+
+    alert("Application Submitted!");
+
+    setName("");
+    setIncome("");
+    setCreditScore("");
   };
 
   return (
-    <div className="card form-card">
+    <div>
 
-      <h2>📋 Loan Application</h2>
+      <h2>Loan Application</h2>
 
-      <div className="form-grid">
+      <p className="subtitle">
+        Enter your details
+      </p>
 
-        <input placeholder="Monthly Income"
-          onChange={(e)=>setForm({...form, income:e.target.value})}/>
+      <label>Name</label>
 
-        <input placeholder="Credit Score (300-900)"
-          onChange={(e)=>setForm({...form, credit_score:e.target.value})}/>
+      <input
+        type="text"
+        placeholder="Enter name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+      />
 
-        <input placeholder="Loan Amount"
-          onChange={(e)=>setForm({...form, loan_amount:e.target.value})}/>
+      <label>Annual Income</label>
 
-        <select onChange={(e)=>setForm({...form, purpose:e.target.value})}>
-          <option>Select Purpose</option>
-          <option>Home</option>
-          <option>Personal</option>
-          <option>Education</option>
-          <option>Vehicle</option>
-        </select>
+      <input
+        type="number"
+        placeholder="Enter annual income"
+        value={income}
+        onChange={(e) => setIncome(e.target.value)}
+      />
 
-        <select onChange={(e)=>setForm({...form, tenure:e.target.value})}>
-          <option>Select Tenure</option>
-          <option value="12">12 Months</option>
-          <option value="24">24 Months</option>
-          <option value="36">36 Months</option>
-        </select>
+      <label>Credit Score</label>
 
-      </div>
+      <input
+        type="number"
+        placeholder="Enter credit score"
+        value={creditScore}
+        onChange={(e) => setCreditScore(e.target.value)}
+      />
 
-      <button className="primary-btn" onClick={handleSubmit}>
+      <button onClick={handleSubmit}>
         Submit Application
       </button>
 
