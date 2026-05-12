@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, Numeric, ForeignKey, String
 from app.core.database import Base
 
 class LoanRecommendation(Base):
@@ -7,14 +7,10 @@ class LoanRecommendation(Base):
 
     id = Column(Integer, primary_key=True)
 
-    user_id = Column(Integer)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    product_id = Column(Integer, ForeignKey("loan_products.id"))
 
-    loan_type = Column(String)
+    emi = Column(Numeric)
+    total_payable = Column(Numeric)
 
-    emi = Column(Integer)
-
-    interest_rate = Column(Integer)
-
-    tenure = Column(Integer)
-
-    risk_level = Column(String)
+    recommendation_reason = Column(String)
