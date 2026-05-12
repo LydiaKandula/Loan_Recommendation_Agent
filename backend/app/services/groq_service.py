@@ -1,37 +1,50 @@
-import os
 from groq import Groq
-from dotenv import load_dotenv
+from app.core.config import GROQ_API_KEY
 
-load_dotenv()
-
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+client = Groq(api_key=GROQ_API_KEY)
 
 def generate_chat_response(data):
 
     prompt = f"""
     You are a smart loan advisor.
 
-    User details:
+    Answer conversationally.
+    Reply in same language.
+
+    User:
     Income: {data.get("income")}
     Credit Score: {data.get("credit_score")}
     Loan Amount: {data.get("loan_amount")}
     Purpose: {data.get("purpose")}
     Tenure: {data.get("tenure")}
 
-    User question: {data.get("question")}
-
-    Give a clear recommendation with:
-    - loan type
-    - EMI estimate
-    - interest
-    - risk
-    - explanation
+    Question:
+    {data.get("question")}
     """
 
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.5
+    res = client.chat.completions.create(
+        model="llama3-70b-8192",
+        messages=[{"role": "user", "content": prompt}]
     )
 
-    return response.choices[0].message.content
+    return res.choices[0].message.content
+
+
+def generate_loan_recommendation(data):
+
+    prompt = f"""
+    Suggest best loan with:
+    loan type, emi, interest, risk.
+
+    User:
+    Income: {data.get("income")}
+    Credit Score: {data.get("credit_score")}
+    Loan Amount: {data.get("loan_amount")}
+    """
+
+    res = client.chat.completions.create(
+        model="llama3-70b-8192",
+        messages=[{"role": "user", "content": prompt}]
+    )
+
+    return res.choices[0].message.content
