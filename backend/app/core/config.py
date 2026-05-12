@@ -1,7 +1,8 @@
-DATABASE_URL = "postgresql://postgres:3684@localhost:5432/loan_agent"
+import os
+from dotenv import load_dotenv
 
-#GROQ_API_KEY = "YOUR_GROQ_API_KEY"
+load_dotenv()
 
-#TWILIO_ACCOUNT_SID = "YOUR_TWILIO_SID"
-#TWILIO_AUTH_TOKEN = "YOUR_TWILIO_TOKEN"
-#TWILIO_PHONE = "+1234567890"
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+DB_URL = "postgresql://postgres:3684@localhost/loan_ai"
