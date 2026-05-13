@@ -1,50 +1,47 @@
 from groq import Groq
+
 from app.core.config import GROQ_API_KEY
 
 client = Groq(api_key=GROQ_API_KEY)
 
-def generate_chat_response(data):
+def generate_ai_response(user_message):
 
-    prompt = f"""
-    You are a smart loan advisor.
+    try:
 
-    Answer conversationally.
-    Reply in same language.
+        completion = client.chat.completions.create(
 
-    User:
-    Income: {data.get("income")}
-    Credit Score: {data.get("credit_score")}
-    Loan Amount: {data.get("loan_amount")}
-    Purpose: {data.get("purpose")}
-    Tenure: {data.get("tenure")}
+            model="llama-3.3-70b-versatile",
 
-    Question:
-    {data.get("question")}
-    """
+            messages=[
 
-    res = client.chat.completions.create(
-        model="llama3-70b-8192",
-        messages=[{"role": "user", "content": prompt}]
-    )
+                {
+                    "role": "system",
 
-    return res.choices[0].message.content
+                    "content": """
+                    You are a professional AI Loan Recommendation Assistant.
 
+                    Your responsibilities:
+                    - Help users choose loans
+                    - Explain EMI clearly
+                    - Suggest affordable loan options
+                    - Be simple and professional
+                    """
+                },
 
-def generate_loan_recommendation(data):
+                {
+                    "role": "user",
 
-    prompt = f"""
-    Suggest best loan with:
-    loan type, emi, interest, risk.
+                    "content": user_message
+                }
+            ],
 
-    User:
-    Income: {data.get("income")}
-    Credit Score: {data.get("credit_score")}
-    Loan Amount: {data.get("loan_amount")}
-    """
+            temperature=0.5,
 
-    res = client.chat.completions.create(
-        model="llama3-70b-8192",
-        messages=[{"role": "user", "content": prompt}]
-    )
+            max_tokens=300
+        )
 
-    return res.choices[0].message.content
+        return completion.choices[0].message.content
+
+    except Exception as e:
+
+        return str(e)

@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+python-dotenv
+groq
+SpeechRecognition
+pyttsx3
+pydub
+python-multipart

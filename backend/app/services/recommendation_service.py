@@ -1,52 +1,30 @@
 from app.services.emi_service import calculate_emi
 
-def recommend_loan(data):
+def generate_recommendation(user, loan_products):
 
-    income = data["income"]
+    recommendations = []
 
-    credit = data["credit_score"]
+    for product in loan_products:
 
-    amount = data["loan_amount"]
+        if product.loan_type.lower() == user.preferred_loan_type.lower():
 
-    if credit >= 750:
+            emi = calculate_emi(
+                float(user.preferred_amount),
+                float(product.interest_rate),
+                int(user.preferred_tenure)
+            )
 
-        loan = "Premium Personal Loan"
+            recommendations.append({
 
-        rate = 10
+                "bank_name": product.bank_name,
 
-        risk = "LOW"
+                "loan_type": product.loan_type,
 
-    elif credit >= 650:
+                "interest_rate": float(product.interest_rate),
 
-        loan = "Standard Personal Loan"
+                "emi": emi,
 
-        rate = 12
+                "tenure_months": user.preferred_tenure
+            })
 
-        risk = "MEDIUM"
-
-    else:
-
-        loan = "Secured Loan"
-
-        rate = 15
-
-        risk = "HIGH"
-
-    emi = calculate_emi(
-        amount,
-        rate,
-        24
-    )
-
-    return {
-
-        "loan_type": loan,
-
-        "interest_rate": rate,
-
-        "emi": emi,
-
-        "tenure": 24,
-
-        "risk_level": risk
-    }
+    return recommendations
