@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 
+<<<<<<< HEAD
 from app.core.database import Base, engine
 
 #from app.models.user import User
@@ -10,20 +11,30 @@ from app.core.database import Base, engine
 
 from app.routes.chat import router as chat_router
 from app.routes.voice import router as voice_router
+=======
+from app.routes.chat_ws import router as chat_router
+from app.routes.voice_ws import router as voice_router
+>>>>>>> main
 from app.routes.agent import router as agent_router
 
 app = FastAPI()
 
+<<<<<<< HEAD
 Base.metadata.create_all(bind=engine)
 
 app.include_router(chat_router)
 
 app.include_router(voice_router)
 
+=======
+app.include_router(chat_router)
+app.include_router(voice_router)
+>>>>>>> main
 app.include_router(agent_router)
 
 @app.get("/")
 def home():
+<<<<<<< HEAD
     return {
         "message": "Loan Recommendation Agent API Running"
     }
@@ -35,3 +46,6 @@ def home():
 
 
 
+=======
+    return {"message": "Loan AI Voice Assistant Running"}
+>>>>>>> main
