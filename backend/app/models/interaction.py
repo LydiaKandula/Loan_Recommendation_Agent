@@ -1,14 +1,15 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, Text
 from app.core.database import Base
+
 
 class Interaction(Base):
 
     __tablename__ = "interactions"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, index=True)
 
-    user_id = Column(Integer)
+    user_message = Column(Text, nullable=False)
 
-    user_message = Column(String)
+    ai_response = Column(Text, nullable=False)
 
-    bot_response = Column(String)
+    communication_type = Column(String(20), nullable=False)

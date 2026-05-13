@@ -1,20 +1,18 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, Numeric, ForeignKey
 from app.core.database import Base
 
 class LoanRecommendation(Base):
 
     __tablename__ = "loan_recommendations"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, index=True)
 
-    user_id = Column(Integer)
+    user_id = Column(Integer, ForeignKey("users.id"))
 
-    loan_type = Column(String)
+    product_id = Column(Integer, ForeignKey("loan_products.id"))
 
-    emi = Column(Integer)
+    emi = Column(Numeric)
 
-    interest_rate = Column(Integer)
+    total_payable = Column(Numeric)
 
-    tenure = Column(Integer)
-
-    risk_level = Column(String)
+    recommendation_reason = Column(String(255))
