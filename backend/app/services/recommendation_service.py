@@ -1,23 +1,30 @@
 from app.services.emi_service import calculate_emi
 
-def recommend(user, products):
+def generate_recommendation(user, loan_products):
 
-    results = []
+    recommendations = []
 
-    for p in products:
+    for product in loan_products:
 
-        if p.loan_type.lower() == user.preferred_loan_type.lower():
+        if product.loan_type.lower() == user.preferred_loan_type.lower():
 
             emi = calculate_emi(
                 float(user.preferred_amount),
-                float(p.interest_rate),
-                int(p.tenure_months)
+                float(product.interest_rate),
+                int(user.preferred_tenure)
             )
 
-            results.append({
-                "bank": p.bank_name,
-                "loan_type": p.loan_type,
-                "emi": emi
+            recommendations.append({
+
+                "bank_name": product.bank_name,
+
+                "loan_type": product.loan_type,
+
+                "interest_rate": float(product.interest_rate),
+
+                "emi": emi,
+
+                "tenure_months": user.preferred_tenure
             })
 
-    return results
+    return recommendations

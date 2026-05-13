@@ -1,9 +1,15 @@
 import math
 
-def calculate_emi(p, r, n):
+def calculate_emi(principal, annual_rate, months):
 
-    r = r / (12 * 100)
+    monthly_rate = annual_rate / 12 / 100
 
-    emi = (p * r * (1 + r) ** n) / ((1 + r) ** n - 1)
+    emi = (
+        principal *
+        monthly_rate *
+        math.pow(1 + monthly_rate, months)
+    ) / (
+        math.pow(1 + monthly_rate, months) - 1
+    )
 
     return round(emi, 2)
