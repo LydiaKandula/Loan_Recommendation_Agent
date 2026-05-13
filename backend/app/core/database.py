@@ -1,10 +1,5 @@
 from sqlalchemy import create_engine
-<<<<<<< HEAD
-from sqlalchemy.orm import declarative_base
-from sqlalchemy.orm import sessionmaker
-=======
 from sqlalchemy.orm import sessionmaker, declarative_base
->>>>>>> main
 
 from app.core.config import DATABASE_URL
 
