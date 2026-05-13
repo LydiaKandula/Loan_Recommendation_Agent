@@ -6,10 +6,5 @@ python-dotenv
 groq
 SpeechRecognition
 pyttsx3
-<<<<<<< HEAD
-pydub
-python-multipart
-=======
 python-multipart
 websockets
->>>>>>> main
