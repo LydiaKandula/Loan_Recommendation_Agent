@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 from pydub import AudioSegment
 import speech_recognition as sr
 import os
@@ -33,15 +32,3 @@ def speech_to_text(file_path: str):
 
     except Exception as e:
         raise Exception(f"Speech processing failed: {str(e)}")
-=======
-import speech_recognition as sr
-
-def speech_to_text(file_path):
-
-    r = sr.Recognizer()
-
-    with sr.AudioFile(file_path) as source:
-        audio = r.record(source)
-
-    return r.recognize_google(audio)
->>>>>>> main
