@@ -1,38 +1,31 @@
-from fastapi import APIRouter
-from app.services.groq_service import generate_ai_response
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from app.core.database import get_db
+from app.models.user import User
+from app.models.interaction import Interaction
+from app.services.recommendation_service import recommend_loan
 
 router = APIRouter()
 
-@router.post("/start-agent")
+@router.post("/chat")
+def chat(data: dict, db: Session = Depends(get_db)):
 
-def start_agent(data: dict):
+    user = User(**data)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
 
-    income = data["monthly_income"]
+    result = recommend_loan(db, user)
 
-    credit_score = data["credit_score"]
+    # ✅ store interaction (CHAT)
+    interaction = Interaction(
+        user_id=user.id,
+        user_message=f"{user.preferred_loan_type} loan request",
+        ai_response=str(result),
+        communication_type="chat"
+    )
 
-    loan_type = data["preferred_loan_type"]
+    db.add(interaction)
+    db.commit()
 
-    amount = data["preferred_amount"]
-
-    prompt = f"""
-
-    Customer income is {income}
-
-    Credit score is {credit_score}
-
-    Customer wants {loan_type}
-
-    Loan amount required is {amount}
-
-    Recommend suitable loan options.
-    """
-
-    response = generate_ai_response(prompt)
-
-    return {
-
-        "message": "AI recommendation generated",
-
-        "recommendation": response
-    }
+    return result

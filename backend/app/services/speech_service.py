@@ -1,34 +1,14 @@
-from pydub import AudioSegment
 import speech_recognition as sr
-import os
 
-recognizer = sr.Recognizer()
+def speech_to_text():
+    r = sr.Recognizer()
 
-
-def convert_to_wav(input_path, output_path):
-    audio = AudioSegment.from_file(input_path)
-    audio = audio.set_channels(1)
-    audio = audio.set_frame_rate(16000)
-    audio.export(output_path, format="wav")
-
-
-def speech_to_text(file_path: str):
+    with sr.Microphone() as source:
+        print("Speak now...")
+        audio = r.listen(source)
 
     try:
-        converted_path = file_path.replace(".wav", "_clean.wav")
-
-        # FORCE CONVERSION
-        convert_to_wav(file_path, converted_path)
-
-        with sr.AudioFile(converted_path) as source:
-            audio = recognizer.record(source)
-
-        text = recognizer.recognize_google(audio)
-
-        # cleanup
-        os.remove(converted_path)
-
+        text = r.recognize_google(audio)
         return text
-
-    except Exception as e:
-        raise Exception(f"Speech processing failed: {str(e)}")
+    except:
+        return "Sorry, could not understand"
