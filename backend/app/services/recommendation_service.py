@@ -1,30 +1,45 @@
+from sqlalchemy.orm import Session
+from app.models.loan_product import LoanProduct
+from app.models.loan_recommendation import LoanRecommendation
 from app.services.emi_service import calculate_emi
 
-def generate_recommendation(user, loan_products):
+def recommend_loan(db: Session, user):
 
-    recommendations = []
+    products = db.query(LoanProduct).filter(
+        LoanProduct.loan_type == user.preferred_loan_type
+    ).all()
 
-    for product in loan_products:
+    best = None
+    lowest_emi = float("inf")
 
-        if product.loan_type.lower() == user.preferred_loan_type.lower():
+    for p in products:
+        if user.preferred_amount <= p.max_amount:
+           emi = calculate_emi(
+    float(user.preferred_amount),
+    float(p.interest_rate),
+    int(user.preferred_tenure))
 
-            emi = calculate_emi(
-                float(user.preferred_amount),
-                float(product.interest_rate),
-                int(user.preferred_tenure)
-            )
+        if emi < lowest_emi:
+                lowest_emi = emi
+                best = (p, emi)
 
-            recommendations.append({
+    if best:
+        product, emi = best
 
-                "bank_name": product.bank_name,
+        rec = LoanRecommendation(
+            user_id=user.id,
+            product_id=product.id,
+            emi=emi,
+            total_payable=emi * user.preferred_tenure,
+            recommendation_reason="Lowest EMI option"
+        )
 
-                "loan_type": product.loan_type,
+        db.add(rec)
+        db.commit()
 
-                "interest_rate": float(product.interest_rate),
+        return {
+            "bank": product.bank_name,
+            "emi": emi
+        }
 
-                "emi": emi,
-
-                "tenure_months": user.preferred_tenure
-            })
-
-    return recommendations
+    return {"message": "No suitable loan found"}
