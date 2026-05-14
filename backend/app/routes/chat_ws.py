@@ -4,14 +4,12 @@ from app.services.groq_service import generate_ai_response
 router = APIRouter()
 
 @router.websocket("/ws/chat")
-async def chat(ws: WebSocket):
-
+async def chat_ws(ws: WebSocket):
     await ws.accept()
 
     while True:
-
         msg = await ws.receive_text()
 
-        response = generate_ai_response(msg)
+        ai = generate_ai_response(msg)
 
-        await ws.send_text(response)
+        await ws.send_text(ai)
