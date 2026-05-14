@@ -29,33 +29,32 @@ function Dashboard() {
   return (
     <div>
 
-      <h2>Application Dashboard</h2>
+      <div className="dashboard-headline">
+        <div>
+          <h2>Application Dashboard</h2>
+          <p className="subtitle">Loan applicants and status overview</p>
+        </div>
+      </div>
 
-      <p className="subtitle">
-        Recent applications
-      </p>
-
-      <div className="dashboard-grid">
-
-        {applications.map((item, index) => (
-
-          <div
-            className="dashboard-card"
-            key={index}
-          >
-
-            <h3>{item.user}</h3>
-
-            <p>
-              Income: {item.income}
-            </p>
-
-            <span className="status">
-              {item.status}
-            </span>
-
-          </div>
-        ))}
+      <div className="dashboard-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Income</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {applications.map((item, index) => (
+              <tr key={index}>
+                <td>{item.user}</td>
+                <td>{item.income}</td>
+                <td>{item.status}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
     </div>
