@@ -32,6 +32,10 @@ function ChatUI() {
     setMessage("");
   };
 
+  const handleVoice = () => {
+    alert("Voice support will be added after backend connection.");
+  };
+
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({
       behavior: "smooth",
@@ -92,6 +96,16 @@ function ChatUI() {
             e.key === "Enter" && sendMessage()
           }
         />
+
+        <button
+          type="button"
+          className="voice-button"
+          onClick={handleVoice}
+          aria-label="Mic input"
+          title="Mic input"
+        >
+          🎤
+        </button>
 
         <button onClick={sendMessage}>
           Send
