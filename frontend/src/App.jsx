@@ -10,35 +10,44 @@ import Dashboard from "./components/Dashboard";
 import "./App.css";
 
 function App() {
+  const [activePage, setActivePage] = useState("Dashboard");
+  const [latestApplication, setLatestApplication] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    age: "",
+    job: "",
+    monthlyIncome: "",
+    monthlyExpenses: "",
+    creditScore: "",
+    preferredLoanType: "personal",
+    preferredAmount: "",
+    preferredTenure: "",
+  });
 
-  const [activePage, setActivePage] =
-    useState("Dashboard");
+  const handleApplicationSubmit = (applicationData) => {
+    setLatestApplication(applicationData);
+  };
 
   return (
     <div className="app">
-
-      <Sidebar
-        activePage={activePage}
-        setActivePage={setActivePage}
-      />
+      <Sidebar activePage={activePage} setActivePage={setActivePage} />
 
       <div className="main">
-
         <Navbar />
 
         {activePage === "Dashboard" && <StatsCards />}
 
         <div className="content-grid">
-
           {activePage === "Dashboard" && (
             <div className="panel full">
-              <Dashboard />
+              <Dashboard latestApplication={latestApplication} />
             </div>
           )}
 
           {activePage === "Loan Form" && (
             <div className="panel full">
-              <InputForm />
+              <InputForm onSubmit={handleApplicationSubmit} />
             </div>
           )}
 
@@ -51,14 +60,10 @@ function App() {
           {activePage === "Logs" && (
             <div className="panel full">
               <h2>Logs</h2>
-              <p className="subtitle">
-                Backend activity logs
-              </p>
+              <p className="subtitle">Backend activity logs</p>
             </div>
           )}
-
         </div>
-
       </div>
     </div>
   );
