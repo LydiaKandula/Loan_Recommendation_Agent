@@ -7,7 +7,7 @@ function Navbar() {
       </h2>
 
       <div className="live-status">
-        ● Live System
+         Live System
       </div>
 
     </div>
