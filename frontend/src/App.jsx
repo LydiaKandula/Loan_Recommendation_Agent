@@ -16,27 +16,33 @@ function App() {
 
   const sidebarRef = useRef(null);
 
-  const [latestApplication, setLatestApplication] = useState({
-    fullName: "",
-    email: "",
-    phone: "",
-    age: "",
-    job: "",
-    monthlyIncome: "",
-    monthlyExpenses: "",
-    creditScore: "",
-    preferredLoanType: "personal",
-    preferredAmount: "",
-    preferredTenure: "",
-  });
+  /* MULTIPLE APPLICATIONS */
+
+  const [applications, setApplications] = useState([]);
+
+  /* FORM SUBMIT */
 
   const handleApplicationSubmit = (applicationData) => {
-    setLatestApplication(applicationData);
+    const newApplication = {
+      ...applicationData,
+
+      id: Date.now(),
+
+      status:
+        applicationData.creditScore >= 750
+          ? "Approved"
+          : applicationData.creditScore >= 650
+          ? "Under Review"
+          : "Rejected",
+    };
+
+    setApplications((prev) => [
+      newApplication,
+      ...prev,
+    ]);
   };
 
-  /* =========================
-     SIDEBAR RESIZE
-  ========================= */
+  /* SIDEBAR RESIZE */
 
   useEffect(() => {
     const handleMouseMove = (e) => {
@@ -48,30 +54,52 @@ function App() {
     };
 
     const stopResize = () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", stopResize);
+      document.removeEventListener(
+        "mousemove",
+        handleMouseMove
+      );
+
+      document.removeEventListener(
+        "mouseup",
+        stopResize
+      );
     };
 
     const startResize = () => {
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", stopResize);
+      document.addEventListener(
+        "mousemove",
+        handleMouseMove
+      );
+
+      document.addEventListener(
+        "mouseup",
+        stopResize
+      );
     };
 
-    const resizeHandle = document.querySelector(".resize-handle");
+    const resizeHandle =
+      document.querySelector(".resize-handle");
 
     if (resizeHandle) {
-      resizeHandle.addEventListener("mousedown", startResize);
+      resizeHandle.addEventListener(
+        "mousedown",
+        startResize
+      );
     }
 
     return () => {
       if (resizeHandle) {
-        resizeHandle.removeEventListener("mousedown", startResize);
+        resizeHandle.removeEventListener(
+          "mousedown",
+          startResize
+        );
       }
     };
   }, []);
 
   return (
     <div className="app">
+
       {/* SIDEBAR */}
 
       <div
@@ -89,31 +117,44 @@ function App() {
 
       <div className="resize-handle"></div>
 
-      {/* MAIN CONTENT */}
+      {/* MAIN */}
 
       <div className="main">
         <Navbar />
 
-        {activePage === "Dashboard" && <StatsCards />}
+        {activePage === "Dashboard" && (
+          <StatsCards applications={applications} />
+        )}
 
         <div className="content-grid">
+
+          {/* DASHBOARD */}
+
           {activePage === "Dashboard" && (
             <div className="panel full">
-              <Dashboard latestApplication={latestApplication} />
+              <Dashboard applications={applications} />
             </div>
           )}
+
+          {/* LOAN FORM */}
 
           {activePage === "Loan Form" && (
             <div className="panel full loan-form">
-              <InputForm onSubmit={handleApplicationSubmit} />
+              <InputForm
+                onSubmit={handleApplicationSubmit}
+              />
             </div>
           )}
+
+          {/* CHAT */}
 
           {activePage === "Chat Assistant" && (
             <div className="panel full">
               <ChatUI />
             </div>
           )}
+
+          {/* LOGS */}
 
           {activePage === "Logs" && (
             <div className="panel full">
@@ -124,6 +165,7 @@ function App() {
               </p>
             </div>
           )}
+
         </div>
       </div>
     </div>
