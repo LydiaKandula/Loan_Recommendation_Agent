@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 import Sidebar from "./components/Sidebar";
 import Navbar from "./components/Navbar";
@@ -11,6 +11,11 @@ import "./App.css";
 
 function App() {
   const [activePage, setActivePage] = useState("Dashboard");
+
+  const [sidebarWidth, setSidebarWidth] = useState(260);
+
+  const sidebarRef = useRef(null);
+
   const [latestApplication, setLatestApplication] = useState({
     fullName: "",
     email: "",
@@ -29,9 +34,62 @@ function App() {
     setLatestApplication(applicationData);
   };
 
+  /* =========================
+     SIDEBAR RESIZE
+  ========================= */
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      const newWidth = e.clientX;
+
+      if (newWidth >= 220 && newWidth <= 450) {
+        setSidebarWidth(newWidth);
+      }
+    };
+
+    const stopResize = () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", stopResize);
+    };
+
+    const startResize = () => {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", stopResize);
+    };
+
+    const resizeHandle = document.querySelector(".resize-handle");
+
+    if (resizeHandle) {
+      resizeHandle.addEventListener("mousedown", startResize);
+    }
+
+    return () => {
+      if (resizeHandle) {
+        resizeHandle.removeEventListener("mousedown", startResize);
+      }
+    };
+  }, []);
+
   return (
     <div className="app">
-      <Sidebar activePage={activePage} setActivePage={setActivePage} />
+      {/* SIDEBAR */}
+
+      <div
+        ref={sidebarRef}
+        className="sidebar"
+        style={{ width: `${sidebarWidth}px` }}
+      >
+        <Sidebar
+          activePage={activePage}
+          setActivePage={setActivePage}
+        />
+      </div>
+
+      {/* RESIZE HANDLE */}
+
+      <div className="resize-handle"></div>
+
+      {/* MAIN CONTENT */}
 
       <div className="main">
         <Navbar />
@@ -46,7 +104,7 @@ function App() {
           )}
 
           {activePage === "Loan Form" && (
-            <div className="panel full">
+            <div className="panel full loan-form">
               <InputForm onSubmit={handleApplicationSubmit} />
             </div>
           )}
@@ -60,7 +118,10 @@ function App() {
           {activePage === "Logs" && (
             <div className="panel full">
               <h2>Logs</h2>
-              <p className="subtitle">Backend activity logs</p>
+
+              <p className="subtitle">
+                Backend activity logs
+              </p>
             </div>
           )}
         </div>
