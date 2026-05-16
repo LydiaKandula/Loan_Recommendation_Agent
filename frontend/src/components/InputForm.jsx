@@ -53,104 +53,147 @@ function InputForm({ onSubmit }) {
   };
 
   return (
-    <div>
-      <h2>Loan Application</h2>
+  <form onSubmit={(e) => e.preventDefault()}>
+    <h2>Loan Application</h2>
 
-      <label>Full Name</label>
-      <input
-        type="text"
-        placeholder="Enter full name"
-        value={fullName}
-        onChange={(e) => setFullName(e.target.value)}
-      />
+    <div className="form-grid">
 
-      <label>Email</label>
-      <input
-        type="email"
-        placeholder="Enter email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-      />
+      <div>
+        <label>Full Name</label>
 
-      <label>Phone</label>
-      <input
-        type="tel"
-        placeholder="Enter phone number"
-        value={phone}
-        onChange={(e) => setPhone(e.target.value)}
-      />
+        <input
+          type="text"
+          placeholder="Enter full name"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+        />
+      </div>
 
-      <label>Age</label>
-      <input
-        type="number"
-        placeholder="Enter age"
-        value={age}
-        onChange={(e) => setAge(e.target.value)}
-      />
+      <div>
+        <label>Email</label>
 
-      <label>Job</label>
-      <input
-        type="text"
-        placeholder="Enter job title"
-        value={job}
-        onChange={(e) => setJob(e.target.value)}
-      />
+        <input
+          type="email"
+          placeholder="Enter email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+      </div>
 
-      <label>Monthly Income</label>
-      <input
-        type="number"
-        placeholder="Enter monthly income"
-        value={monthlyIncome}
-        onChange={(e) => setMonthlyIncome(e.target.value)}
-      />
+      <div>
+        <label>Phone</label>
 
-      <label>Monthly Expenses</label>
-      <input
-        type="number"
-        placeholder="Enter monthly expenses"
-        value={monthlyExpenses}
-        onChange={(e) => setMonthlyExpenses(e.target.value)}
-      />
+        <input
+          type="tel"
+          placeholder="Enter phone number"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+        />
+      </div>
 
-      <label>Credit Score</label>
-      <input
-        type="number"
-        placeholder="Enter credit score"
-        value={creditScore}
-        onChange={(e) => setCreditScore(e.target.value)}
-      />
+      <div>
+        <label>Age</label>
 
-      <label>Preferred Loan Type</label>
-      <select
-        value={preferredLoanType}
-        onChange={(e) => setPreferredLoanType(e.target.value)}
-      >
-        <option value="personal">Personal</option>
-        <option value="home">Home</option>
-        <option value="auto">Auto</option>
-        <option value="business">Business</option>
-        <option value="Education">Education</option>
-      </select>
+        <input
+          type="number"
+          placeholder="Enter age"
+          value={age}
+          onChange={(e) => setAge(e.target.value)}
+        />
+      </div>
 
-      <label>Preferred Amount</label>
-      <input
-        type="number"
-        placeholder="Enter preferred loan amount"
-        value={preferredAmount}
-        onChange={(e) => setPreferredAmount(e.target.value)}
-      />
+      <div>
+        <label>Job</label>
 
-      <label>Preferred Tenure (months)</label>
-      <input
-        type="number"
-        placeholder="Enter preferred tenure"
-        value={preferredTenure}
-        onChange={(e) => setPreferredTenure(e.target.value)}
-      />
+        <input
+          type="text"
+          placeholder="Enter job title"
+          value={job}
+          onChange={(e) => setJob(e.target.value)}
+        />
+      </div>
 
-      <button onClick={handleSubmit}>Submit Application</button>
+      <div>
+        <label>Monthly Income</label>
+
+        <input
+          type="number"
+          placeholder="Enter monthly income"
+          value={monthlyIncome}
+          onChange={(e) => setMonthlyIncome(e.target.value)}
+        />
+      </div>
+
+      <div>
+        <label>Monthly Expenses</label>
+
+        <input
+          type="number"
+          placeholder="Enter monthly expenses"
+          value={monthlyExpenses}
+          onChange={(e) => setMonthlyExpenses(e.target.value)}
+        />
+      </div>
+
+      <div>
+        <label>Credit Score</label>
+
+        <input
+          type="number"
+          placeholder="Enter credit score"
+          value={creditScore}
+          onChange={(e) => setCreditScore(e.target.value)}
+        />
+      </div>
+
+      <div>
+        <label>Preferred Loan Type</label>
+
+        <select
+          value={preferredLoanType}
+          onChange={(e) => setPreferredLoanType(e.target.value)}
+        >
+          <option value="personal">Personal</option>
+          <option value="home">Home</option>
+          <option value="auto">Auto</option>
+          <option value="business">Business</option>
+          <option value="education">Education</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Preferred Amount</label>
+
+        <input
+          type="number"
+          placeholder="Enter preferred loan amount"
+          value={preferredAmount}
+          onChange={(e) => setPreferredAmount(e.target.value)}
+        />
+      </div>
+
+      <div>
+        <label>Preferred Tenure (months)</label>
+
+        <input
+          type="number"
+          placeholder="Enter preferred tenure"
+          value={preferredTenure}
+          onChange={(e) => setPreferredTenure(e.target.value)}
+        />
+      </div>
+
     </div>
-  );
+
+    <button
+      type="button"
+      onClick={handleSubmit}
+      style={{ marginTop: "20px" }}
+    >
+      Submit Application
+    </button>
+  </form>
+);
 }
 
 export default InputForm;
