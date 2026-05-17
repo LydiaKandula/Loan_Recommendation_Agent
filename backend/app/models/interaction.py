@@ -3,7 +3,7 @@ from app.core.database import Base
 from sqlalchemy.sql import func
 
 class Interaction(Base):
-    __tablename__ = "interactions"
+    _tablename_ = "interactions"
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"))

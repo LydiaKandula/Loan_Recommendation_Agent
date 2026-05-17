@@ -3,7 +3,7 @@ from app.core.database import Base
 from sqlalchemy.sql import func
 
 class User(Base):
-    __tablename__ = "users"
+    _tablename_ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
     full_name = Column(String)

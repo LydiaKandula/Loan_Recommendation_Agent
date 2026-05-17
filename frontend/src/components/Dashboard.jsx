@@ -1,3 +1,5 @@
+//Dashboard.jsx
+
 function Dashboard({ applications }) {
   return (
     <div>
