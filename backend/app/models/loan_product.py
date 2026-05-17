@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, Numeric, Text
 from app.core.database import Base
 
 class LoanProduct(Base):
-    __tablename__ = "loan_products"
+    _tablename_ = "loan_products"
 
     id = Column(Integer, primary_key=True)
 
