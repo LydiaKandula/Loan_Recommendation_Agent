@@ -1,3 +1,5 @@
+//ChatUI.jsx
+
 import { useState, useRef, useEffect } from "react";
 
 function ChatUI() {
