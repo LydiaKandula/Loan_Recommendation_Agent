@@ -3,7 +3,7 @@ from app.core.database import Base
 from sqlalchemy.sql import func
 
 class LoanRecommendation(Base):
-    _tablename_ = "loan_recommendations"
+    __tablename__ = "loan_recommendations"
 
     id = Column(Integer, primary_key=True)
 
