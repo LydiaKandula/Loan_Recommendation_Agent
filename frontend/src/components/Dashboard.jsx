@@ -5,9 +5,7 @@ function Dashboard({ applications }) {
       <div className="dashboard-headline">
         <h2>Loan Applications</h2>
 
-        <p className="subtitle">
-          Real-time submitted applicant details
-        </p>
+        
       </div>
 
       <div className="dashboard-table">
@@ -15,12 +13,10 @@ function Dashboard({ applications }) {
 
           <thead>
             <tr>
-              <th>Applicant</th>
+              <th>Applicant Name</th>
               <th>Loan Type</th>
-              <th>Income</th>
-              <th>Credit Score</th>
               <th>Loan Amount</th>
-              <th>Status</th>
+              <th>Recommendation</th>              <th>Submitted</th>              <th>Status</th>
             </tr>
           </thead>
 
@@ -33,24 +29,21 @@ function Dashboard({ applications }) {
 
                   <td>{app.fullName}</td>
 
+                  <td>{app.preferredLoanType}</td>
+
+                  <td>₹ {app.preferredAmount}</td>
+
                   <td>
-                    {app.preferredLoanType}
+                    {app.recommendationText ?? "No recommendation"}
                   </td>
 
                   <td>
-                    ₹ {app.monthlyIncome}
+                    {app.createdAt
+                      ? new Date(app.createdAt).toLocaleString()
+                      : "-"}
                   </td>
 
                   <td>
-                    {app.creditScore}
-                  </td>
-
-                  <td>
-                    ₹ {app.preferredAmount}
-                  </td>
-
-                  <td>
-
                     <span
                       className={`status ${
                         app.status === "Approved"
@@ -62,7 +55,6 @@ function Dashboard({ applications }) {
                     >
                       {app.status}
                     </span>
-
                   </td>
 
                 </tr>
