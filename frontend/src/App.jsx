@@ -17,6 +17,35 @@ function App() {
 
   const sidebarRef = useRef(null);
 
+<<<<<<< HEAD
+  /* MULTIPLE APPLICATIONS */
+
+  const [applications, setApplications] = useState([]);
+
+  /* =========================
+     STEP 5 ADD THIS
+  ========================= */
+
+  useEffect(() => {
+
+    fetch("http://127.0.0.1:8000/applications")
+
+      .then((res) => res.json())
+
+      .then((data) => {
+
+        setApplications(data);
+
+      })
+
+      .catch((err) => {
+
+        console.log("Backend fetch error:", err);
+
+      });
+
+  }, []);
+=======
   const getLoanRecommendation = ({
     preferredLoanType,
     creditScore,
@@ -141,16 +170,25 @@ function App() {
       );
     }
   }, [applications]);
+>>>>>>> 5e1f87c2bb6868f08cbbe844b66cf68c545847d6
 
   /* FORM SUBMIT */
 
   const handleApplicationSubmit = (applicationData) => {
+<<<<<<< HEAD
+    const newApplication = {
+      ...applicationData,
+
+      id: Date.now(),
+
+=======
     const recommendation = getLoanRecommendation(applicationData);
     const newApplication = {
       ...applicationData,
       id: Date.now(),
       createdAt: new Date().toISOString(),
       recommendationText: recommendation.recommendationText,
+>>>>>>> 5e1f87c2bb6868f08cbbe844b66cf68c545847d6
       status:
         applicationData.creditScore >= 750
           ? "Approved"
@@ -159,6 +197,12 @@ function App() {
           : "Rejected",
     };
 
+<<<<<<< HEAD
+    setApplications((prev) => [
+      newApplication,
+      ...prev,
+    ]);
+=======
     setApplications((prev) => {
       const next = [newApplication, ...prev];
       if (typeof window !== "undefined") {
@@ -166,6 +210,7 @@ function App() {
       }
       return next;
     });
+>>>>>>> 5e1f87c2bb6868f08cbbe844b66cf68c545847d6
   };
 
   /* SIDEBAR RESIZE */
