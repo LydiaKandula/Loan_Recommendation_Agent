@@ -1,19 +1,7 @@
 from fastapi import FastAPI
-<<<<<<< Updated upstream
-from fastapi.middleware.cors import CORSMiddleware
-
-from app.routes import agent
-from app.routes import application
-from app.routes import chat
-from app.routes import voice
-
-from app.core.database import engine
-from app.models.application import Base
-=======
 from app.routes import agent, chat_ws, voice_ws
 from app.core.database import Base, engine, SessionLocal
 from app.models.loan_product import LoanProduct
->>>>>>> Stashed changes
 
 Base.metadata.create_all(bind=engine)
 
