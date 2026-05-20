@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+<<<<<<< Updated upstream
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routes import agent
@@ -8,8 +9,91 @@ from app.routes import voice
 
 from app.core.database import engine
 from app.models.application import Base
+=======
+from app.routes import agent, chat_ws, voice_ws
+from app.core.database import Base, engine, SessionLocal
+from app.models.loan_product import LoanProduct
+>>>>>>> Stashed changes
 
 Base.metadata.create_all(bind=engine)
+
+
+def seed_loan_products():
+    session = SessionLocal()
+    try:
+        if session.query(LoanProduct).count() == 0:
+            products = [
+                LoanProduct(
+                    bank_name="HDFC Bank",
+                    loan_type="personal",
+                    interest_rate=13.9,
+                    max_amount=1000000,
+                    tenure_months=60,
+                    processing_fee=1.0,
+                    description="Flexible personal loan from HDFC Bank.",
+                ),
+                LoanProduct(
+                    bank_name="ICICI Bank",
+                    loan_type="personal",
+                    interest_rate=14.4,
+                    max_amount=800000,
+                    tenure_months=60,
+                    processing_fee=1.2,
+                    description="Competitive personal loan from ICICI Bank.",
+                ),
+                LoanProduct(
+                    bank_name="State Bank of India",
+                    loan_type="home",
+                    interest_rate=8.05,
+                    max_amount=5000000,
+                    tenure_months=240,
+                    processing_fee=0.5,
+                    description="Home loan from SBI with low interest.",
+                ),
+                LoanProduct(
+                    bank_name="HDFC Bank",
+                    loan_type="home",
+                    interest_rate=8.25,
+                    max_amount=4000000,
+                    tenure_months=240,
+                    processing_fee=0.6,
+                    description="Home loan from HDFC Bank for first-time buyers.",
+                ),
+                LoanProduct(
+                    bank_name="SBI",
+                    loan_type="auto",
+                    interest_rate=8.25,
+                    max_amount=2000000,
+                    tenure_months=84,
+                    processing_fee=0.6,
+                    description="Auto loan from SBI with attractive EMI options.",
+                ),
+                LoanProduct(
+                    bank_name="Axis Bank",
+                    loan_type="business",
+                    interest_rate=12.9,
+                    max_amount=3000000,
+                    tenure_months=120,
+                    processing_fee=1.0,
+                    description="Business loan from Axis Bank.",
+                ),
+                LoanProduct(
+                    bank_name="SBI",
+                    loan_type="education",
+                    interest_rate=9.15,
+                    max_amount=2000000,
+                    tenure_months=120,
+                    processing_fee=0.4,
+                    description="Education loan from SBI for students.",
+                ),
+            ]
+            session.add_all(products)
+            session.commit()
+    finally:
+        session.close()
+
+
+seed_loan_products()
 
 app = FastAPI()
 
