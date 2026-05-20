@@ -1,59 +1,91 @@
-function Dashboard() {
+//Dashboard.jsx
 
-  const applications = [
-    {
-      user: "Ravi",
-      income: "$50,000",
-      status: "Personal Loan",
-    },
-
-    {
-      user: "Sita",
-      income: "$70,000",
-      status: "Home Loan",
-    },
-
-    {
-      user: "Amit",
-      income: "$120,000",
-      status: "All Loans",
-    },
-
-    {
-      user: "Priya",
-      income: "$85,000",
-      status: "Auto Loan",
-    },
-  ];
-
+function Dashboard({ applications }) {
   return (
     <div>
 
       <div className="dashboard-headline">
-        <div>
-          <h2>Application Dashboard</h2>
-          <p className="subtitle">Loan applicants and status overview</p>
-        </div>
+        <h2>Loan Applications</h2>
+
+        
       </div>
 
       <div className="dashboard-table">
         <table>
+
           <thead>
             <tr>
-              <th>Name</th>
+              <th>Applicant</th>
+              <th>Loan Type</th>
               <th>Income</th>
+              <th>Credit Score</th>
+              <th>Loan Amount</th>
               <th>Status</th>
             </tr>
           </thead>
+
           <tbody>
-            {applications.map((item, index) => (
-              <tr key={index}>
-                <td>{item.user}</td>
-                <td>{item.income}</td>
-                <td>{item.status}</td>
+
+            {applications.length > 0 ? (
+              applications.map((app) => (
+
+                <tr key={app.id}>
+
+                  <td>{app.fullName}</td>
+
+                  <td>
+                    {app.preferredLoanType}
+                  </td>
+
+                  <td>
+                    ₹ {app.monthlyIncome}
+                  </td>
+
+                  <td>
+                    {app.creditScore}
+                  </td>
+
+                  <td>
+                    ₹ {app.preferredAmount}
+                  </td>
+
+                  <td>
+
+                    <span
+                      className={`status ${
+                        app.status === "Approved"
+                          ? "status-approved"
+                          : app.status === "Rejected"
+                          ? "status-pending"
+                          : "status-under-review"
+                      }`}
+                    >
+                      {app.status}
+                    </span>
+
+                  </td>
+
+                </tr>
+
+              ))
+            ) : (
+
+              <tr>
+                <td
+                  colSpan="6"
+                  style={{
+                    textAlign: "center",
+                    padding: "20px",
+                  }}
+                >
+                  No applications submitted
+                </td>
               </tr>
-            ))}
+
+            )}
+
           </tbody>
+
         </table>
       </div>
 
