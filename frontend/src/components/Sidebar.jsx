@@ -3,7 +3,7 @@ function Sidebar({
   setActivePage,
 }) {
 
-  const menus = [
+  const menuItems = [
     "Dashboard",
     "Loan Form",
     "Chat Assistant",
@@ -11,18 +11,18 @@ function Sidebar({
   ];
 
   return (
-    <div className="sidebar">
+    <div>
 
       <div className="logo">
-        LoanAI
+        Loan AI System
       </div>
 
       <div className="menu">
 
-        {menus.map((item, index) => (
+        {menuItems.map((item) => (
 
           <button
-            key={index}
+            key={item}
             className={
               activePage === item
                 ? "active"

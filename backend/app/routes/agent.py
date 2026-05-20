@@ -2,25 +2,24 @@ from fastapi import APIRouter
 
 router = APIRouter()
 
-@router.post("/chat")
-def chat(data: dict, db: Session = Depends(get_db)):
+@router.get("/test")
+def test_api():
+    return {
+        "message": "Backend Connected Successfully"
+    }
+@router.post("/recommend")
+def recommend_loan(data: dict):
 
-    user = User(**data)
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    income = data.get("income")
+    loan_type = data.get("loan_type")
 
-    result = recommend_loan(db, user)
+    if income >= 50000:
+        recommendation = "SBI Home Loan"
+    else:
+        recommendation = "HDFC Personal Loan"
 
-    # ✅ store interaction (CHAT)
-    interaction = Interaction(
-        user_id=user.id,
-        user_message=f"{user.preferred_loan_type} loan request",
-        ai_response=str(result),
-        communication_type="chat"
-    )
-
-    db.add(interaction)
-    db.commit()
-
-    return result
+    return {
+        "recommended_loan": recommendation,
+        "loan_type": loan_type,
+        "income": income
+    }
