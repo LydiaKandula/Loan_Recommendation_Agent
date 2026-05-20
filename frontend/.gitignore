@@ -26,3 +26,9 @@ backend/.env
 __pycache__/
 __pycache__/
 *.pyc
+__pycache__/
+_pycache_/
+*.pyc
+.env
+node_modules/
+dist/
