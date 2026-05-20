@@ -1,43 +1,18 @@
-function Dashboard() {
+//Dashboard.jsx
 
-  const applications = [
-    {
-      user: "Ravi",
-      income: "$50,000",
-      status: "Personal Loan",
-    },
-
-    {
-      user: "Sita",
-      income: "$70,000",
-      status: "Home Loan",
-    },
-
-    {
-      user: "Amit",
-      income: "$120,000",
-      status: "All Loans",
-    },
-
-    {
-      user: "Priya",
-      income: "$85,000",
-      status: "Auto Loan",
-    },
-  ];
-
+function Dashboard({ applications }) {
   return (
     <div>
 
       <div className="dashboard-headline">
-        <div>
-          <h2>Application Dashboard</h2>
-          <p className="subtitle">Loan applicants and status overview</p>
-        </div>
+        <h2>Loan Applications</h2>
+
+        
       </div>
 
       <div className="dashboard-table">
         <table>
+
           <thead>
             <tr>
               <th>Name</th>
@@ -45,6 +20,7 @@ function Dashboard() {
               <th>Status</th>
             </tr>
           </thead>
+
           <tbody>
             {applications.map((item, index) => (
               <tr key={index}>
@@ -52,8 +28,11 @@ function Dashboard() {
                 <td>{item.income}</td>
                 <td>{item.status}</td>
               </tr>
-            ))}
+
+            )}
+
           </tbody>
+
         </table>
       </div>
 

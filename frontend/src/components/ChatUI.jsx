@@ -1,15 +1,21 @@
+//ChatUI.jsx
+
 import { useState, useRef, useEffect } from "react";
 
 function ChatUI() {
 
   const [message, setMessage] = useState("");
+
   const [chat, setChat] = useState([]);
+
+  const [isListening, setIsListening] =
+    useState(false);
 
   const chatEndRef = useRef(null);
 
   const sendMessage = () => {
 
-    if (!message.trim()) return;
+  if (!message.trim()) return;
 
     const responses = [
       "You are eligible for a Home Loan.",
@@ -33,26 +39,40 @@ function ChatUI() {
   };
 
   useEffect(() => {
+
     chatEndRef.current?.scrollIntoView({
       behavior: "smooth",
     });
+
   }, [chat]);
 
   return (
     <div>
 
-      <h2>Chat Assistant</h2>
+      {/* HEADER */}
 
-      <p className="subtitle">
-        Ask anything about loans
-      </p>
+      <div className="assistant-header">
+
+        <div className="assistant-dot"></div>
+
+        <div>
+
+          <h3>
+            Loan Recommendation AI Agent
+          </h3>
+
+        </div>
+
+      </div>
+
+      {/* CHAT BOX */}
 
       <div className="chat-box">
 
         {chat.length === 0 ? (
 
           <p className="empty-chat">
-            Start conversation...
+            Start conversation with AI assistant...
           </p>
 
         ) : (
@@ -61,25 +81,41 @@ function ChatUI() {
 
             <div key={index}>
 
+              {/* USER */}
+
               <div className="user-row">
+
                 <div className="user-message">
+
                   {item.user}
+
                 </div>
+
               </div>
 
+              {/* BOT */}
+
               <div className="bot-row">
+
                 <div className="bot-message">
+
                   {item.bot}
+
                 </div>
+
               </div>
 
             </div>
+
           ))
+
         )}
 
         <div ref={chatEndRef}></div>
 
       </div>
+
+      {/* INPUT */}
 
       <div className="chat-input">
 
@@ -87,14 +123,19 @@ function ChatUI() {
           type="text"
           placeholder="Ask about loans..."
           value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          onChange={(e) =>
+            setMessage(e.target.value)
+          }
           onKeyDown={(e) =>
-            e.key === "Enter" && sendMessage()
+            e.key === "Enter" &&
+            sendMessage()
           }
         />
 
         <button onClick={sendMessage}>
+
           Send
+
         </button>
 
       </div>
