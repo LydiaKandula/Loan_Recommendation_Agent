@@ -17,7 +17,6 @@ function App() {
 
   const sidebarRef = useRef(null);
 
-<<<<<<< HEAD
   /* MULTIPLE APPLICATIONS */
 
   const [applications, setApplications] = useState([]);
@@ -45,150 +44,15 @@ function App() {
       });
 
   }, []);
-=======
-  const getLoanRecommendation = ({
-    preferredLoanType,
-    creditScore,
-    preferredAmount,
-    preferredTenure,
-  }) => {
-    const loanOffers = {
-      personal: [
-        { minScore: 750, bank: "HDFC Bank", rate: 13.9 },
-        { minScore: 700, bank: "ICICI Bank", rate: 14.4 },
-        { minScore: 650, bank: "Axis Bank", rate: 14.9 },
-        { minScore: 0, bank: "Bank of Baroda", rate: 16.2 },
-      ],
-      home: [
-        { minScore: 750, bank: "SBI", rate: 8.05 },
-        { minScore: 700, bank: "HDFC Bank", rate: 8.25 },
-        { minScore: 650, bank: "ICICI Bank", rate: 8.35 },
-        { minScore: 0, bank: "Axis Bank", rate: 8.55 },
-      ],
-      auto: [
-        { minScore: 750, bank: "SBI", rate: 8.25 },
-        { minScore: 700, bank: "HDFC Bank", rate: 8.55 },
-        { minScore: 650, bank: "ICICI Bank", rate: 8.75 },
-        { minScore: 0, bank: "Axis Bank", rate: 9.1 },
-      ],
-      business: [
-        { minScore: 750, bank: "SBI", rate: 12.5 },
-        { minScore: 700, bank: "HDFC Bank", rate: 12.9 },
-        { minScore: 650, bank: "ICICI Bank", rate: 13.3 },
-        { minScore: 0, bank: "Axis Bank", rate: 13.9 },
-      ],
-      education: [
-        { minScore: 750, bank: "SBI", rate: 9.15 },
-        { minScore: 700, bank: "HDFC Bank", rate: 9.45 },
-        { minScore: 650, bank: "ICICI Bank", rate: 9.85 },
-        { minScore: 0, bank: "Axis Bank", rate: 10.2 },
-      ],
-    };
-
-    const offers = loanOffers[preferredLoanType] || loanOffers.personal;
-    const offer = offers.find((item) => creditScore >= item.minScore) || offers[offers.length - 1];
-    const rate = offer.rate;
-    const monthlyRate = rate / 100 / 12;
-    const n = Number(preferredTenure);
-    const p = Number(preferredAmount);
-    const emi = n > 0
-      ? Math.round(
-          (p * monthlyRate * Math.pow(1 + monthlyRate, n)) /
-            (Math.pow(1 + monthlyRate, n) - 1)
-        )
-      : 0;
-
-    return {
-      bank: offer.bank,
-      rate,
-      emi,
-      recommendationText: `${offer.bank} @ ${rate.toFixed(2)}% | EMI ₹${emi}`,
-    };
-  };
-
-  const createLoanRecommendationText = ({
-    preferredLoanType,
-    creditScore,
-    preferredAmount,
-    preferredTenure,
-  }) => {
-    if (
-      !preferredLoanType ||
-      !preferredAmount ||
-      !preferredTenure ||
-      !creditScore
-    ) {
-      return null;
-    }
-
-    const recommendation = getLoanRecommendation({
-      preferredLoanType,
-      creditScore,
-      preferredAmount,
-      preferredTenure,
-    });
-
-    return recommendation.recommendationText;
-  };
-
-  /* MULTIPLE APPLICATIONS */
-
-  const [applications, setApplications] = useState(() => {
-    if (typeof window === "undefined") {
-      return [];
-    }
-
-    const stored = window.localStorage.getItem("loanApplications");
-    if (!stored) {
-      return [];
-    }
-
-    try {
-      const parsed = JSON.parse(stored);
-      return parsed.map((app) => ({
-        ...app,
-        recommendationText:
-          app.recommendationText ?? createLoanRecommendationText(app),
-        status:
-          app.status ??
-          (app.creditScore >= 750
-            ? "Approved"
-            : app.creditScore >= 650
-            ? "Under Review"
-            : "Rejected"),
-      }));
-    } catch {
-      return [];
-    }
-  });
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(
-        "loanApplications",
-        JSON.stringify(applications)
-      );
-    }
-  }, [applications]);
->>>>>>> 5e1f87c2bb6868f08cbbe844b66cf68c545847d6
 
   /* FORM SUBMIT */
 
   const handleApplicationSubmit = (applicationData) => {
-<<<<<<< HEAD
     const newApplication = {
       ...applicationData,
 
       id: Date.now(),
 
-=======
-    const recommendation = getLoanRecommendation(applicationData);
-    const newApplication = {
-      ...applicationData,
-      id: Date.now(),
-      createdAt: new Date().toISOString(),
-      recommendationText: recommendation.recommendationText,
->>>>>>> 5e1f87c2bb6868f08cbbe844b66cf68c545847d6
       status:
         applicationData.creditScore >= 750
           ? "Approved"
@@ -197,20 +61,10 @@ function App() {
           : "Rejected",
     };
 
-<<<<<<< HEAD
     setApplications((prev) => [
       newApplication,
       ...prev,
     ]);
-=======
-    setApplications((prev) => {
-      const next = [newApplication, ...prev];
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("loanApplications", JSON.stringify(next));
-      }
-      return next;
-    });
->>>>>>> 5e1f87c2bb6868f08cbbe844b66cf68c545847d6
   };
 
   /* SIDEBAR RESIZE */
