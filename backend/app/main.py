@@ -1,17 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-<<<<<<< HEAD
-=======
 
 from app.routes import agent
 from app.routes import application
 from app.routes import chat
+from app.routes import voice
 
 from app.core.database import engine
 from app.models.application import Base
->>>>>>> c6238e05c6eb22f9867b0c5565266ba4fedb70c9
 
-from app.routes import agent
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
@@ -23,14 +21,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# EXISTING ROUTES
 app.include_router(agent.router)
-<<<<<<< HEAD
-=======
 app.include_router(application.router)
+
+# NEW ROUTES
 app.include_router(chat.router)
->>>>>>> c6238e05c6eb22f9867b0c5565266ba4fedb70c9
+app.include_router(voice.router)
 
 @app.get("/")
+@app.post("/submit-application")
 def home():
     return {
         "message": "Backend Running"
