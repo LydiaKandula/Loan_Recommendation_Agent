@@ -1,7 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from app.routes import agent
-from app.core.database import Base, engine
+from app.routes import application
+from app.routes import chat
+
+from app.core.database import engine
+from app.models.application import Base
 
 Base.metadata.create_all(bind=engine)
 
@@ -16,10 +21,11 @@ app.add_middleware(
 )
 
 app.include_router(agent.router)
+app.include_router(application.router)
+app.include_router(chat.router)
 
 @app.get("/")
 def home():
-    return {"message": "Loan AI Voice Assistant Running"}
-
-
-#Base.metadata.create_all(bind=engine)
+    return {
+        "message": "Backend Running"
+    }

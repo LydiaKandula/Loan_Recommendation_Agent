@@ -2,7 +2,15 @@
 
 import { useState } from "react";
 
+<<<<<<< HEAD
+/* BACKEND API */
+const API = "http://127.0.0.1:8000";
+
 function InputForm({ onSubmit }) {
+
+=======
+function InputForm({ onSubmit }) {
+>>>>>>> 5e1f87c2bb6868f08cbbe844b66cf68c545847d6
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -14,6 +22,25 @@ function InputForm({ onSubmit }) {
   const [preferredLoanType, setPreferredLoanType] = useState("personal");
   const [preferredAmount, setPreferredAmount] = useState("");
   const [preferredTenure, setPreferredTenure] = useState("");
+<<<<<<< HEAD
+
+  const handleSubmit = async () => {
+
+    if (
+      !fullName ||
+      !email ||
+      !phone ||
+      !age ||
+      !job ||
+      !monthlyIncome ||
+      !monthlyExpenses ||
+      !creditScore ||
+      !preferredLoanType ||
+      !preferredAmount ||
+      !preferredTenure
+    ) {
+      alert("Please fill all fields");
+=======
   const [errors, setErrors] = useState({});
 
   const validateEmail = (value) => /^\S+@\S+\.\S+$/.test(value);
@@ -158,15 +185,24 @@ function InputForm({ onSubmit }) {
 
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
+>>>>>>> 5e1f87c2bb6868f08cbbe844b66cf68c545847d6
       return;
     }
 
     const application = {
+<<<<<<< HEAD
+      fullName,
+      email,
+      phone,
+      age: Number(age),
+      job,
+=======
       fullName: fullName.trim(),
       email: email.trim(),
       phone: phone.trim(),
       age: Number(age),
       job: job.trim(),
+>>>>>>> 5e1f87c2bb6868f08cbbe844b66cf68c545847d6
       monthlyIncome: Number(monthlyIncome),
       monthlyExpenses: Number(monthlyExpenses),
       creditScore: Number(creditScore),
@@ -175,6 +211,196 @@ function InputForm({ onSubmit }) {
       preferredTenure: Number(preferredTenure),
     };
 
+<<<<<<< HEAD
+    try {
+
+      const response = await fetch(
+        `${API}/submit-application`,
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json",
+          },
+
+          body: JSON.stringify(application),
+        }
+      );
+
+      const data = await response.json();
+
+      alert(data.message);
+
+      if (onSubmit) {
+        onSubmit(application);
+      }
+
+    } catch (error) {
+
+      console.log(error);
+
+      alert("Backend connection failed");
+    }
+  };
+
+  return (
+    
+  <form onSubmit={(e) => e.preventDefault()}>
+
+    <h2>Loan Application</h2>
+
+    <div className="form-grid">
+
+      <div>
+        <label>Full Name</label>
+
+        <input
+          type="text"
+          placeholder="Enter full name"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+        />
+      </div>
+
+      <div>
+        <label>Email</label>
+
+        <input
+          type="email"
+          placeholder="Enter email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+      </div>
+
+      <div>
+        <label>Phone</label>
+
+        <input
+          type="tel"
+          placeholder="Enter phone number"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+        />
+      </div>
+
+      <div>
+        <label>Age</label>
+
+        <input
+          type="number"
+          placeholder="Enter age"
+          value={age}
+          onChange={(e) => setAge(e.target.value)}
+        />
+      </div>
+
+      <div>
+        <label>Job</label>
+
+        <input
+          type="text"
+          placeholder="Enter job title"
+          value={job}
+          onChange={(e) => setJob(e.target.value)}
+        />
+      </div>
+
+      <div>
+        <label>Monthly Income</label>
+
+        <input
+          type="number"
+          placeholder="Enter monthly income"
+          value={monthlyIncome}
+          onChange={(e) =>
+            setMonthlyIncome(e.target.value)
+          }
+        />
+      </div>
+
+      <div>
+        <label>Monthly Expenses</label>
+
+        <input
+          type="number"
+          placeholder="Enter monthly expenses"
+          value={monthlyExpenses}
+          onChange={(e) =>
+            setMonthlyExpenses(e.target.value)
+          }
+        />
+      </div>
+
+      <div>
+        <label>Credit Score</label>
+
+        <input
+          type="number"
+          placeholder="Enter credit score"
+          value={creditScore}
+          onChange={(e) =>
+            setCreditScore(e.target.value)
+          }
+        />
+      </div>
+
+      <div>
+        <label>Preferred Loan Type</label>
+
+        <select
+          value={preferredLoanType}
+          onChange={(e) =>
+            setPreferredLoanType(e.target.value)
+          }
+        >
+          <option value="personal">Personal</option>
+          <option value="home">Home</option>
+          <option value="auto">Auto</option>
+          <option value="business">Business</option>
+          <option value="education">Education</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Preferred Amount</label>
+
+        <input
+          type="number"
+          placeholder="Enter preferred loan amount"
+          value={preferredAmount}
+          onChange={(e) =>
+            setPreferredAmount(e.target.value)
+          }
+        />
+      </div>
+
+      <div>
+        <label>Preferred Tenure (months)</label>
+
+        <input
+          type="number"
+          placeholder="Enter preferred tenure"
+          value={preferredTenure}
+          onChange={(e) =>
+            setPreferredTenure(e.target.value)
+          }
+        />
+      </div>
+
+    </div>
+
+    <button
+      type="button"
+      onClick={handleSubmit}
+      style={{ marginTop: "20px" }}
+    >
+      Submit Application
+    </button>
+
+  </form>
+);
+=======
     if (onSubmit) {
       onSubmit(application);
     }
@@ -350,6 +576,7 @@ function InputForm({ onSubmit }) {
       </button>
     </form>
   );
+>>>>>>> 5e1f87c2bb6868f08cbbe844b66cf68c545847d6
 }
 
 export default InputForm;
