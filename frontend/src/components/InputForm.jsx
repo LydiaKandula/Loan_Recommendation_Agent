@@ -304,7 +304,7 @@ function InputForm({ onSubmit }) {
           >
             <option value="personal">Personal</option>
             <option value="home">Home</option>
-            <option value="auto">Auto</option>
+            <option value="car">Car</option>
             <option value="business">Business</option>
             <option value="education">Education</option>
           </select>
