@@ -10,139 +10,87 @@ import Dashboard from "./components/Dashboard";
 import "./App.css";
 
 function App() {
-
   const [activePage, setActivePage] = useState("Dashboard");
-
   const [sidebarWidth, setSidebarWidth] = useState(260);
 
-  const sidebarRef = useRef(null);
+  /* ✅ GLOBAL CHAT STATE (PERSISTENT) */
+  const [chat, setChat] = useState([]);
 
-  /* =========================
-     APPLICATION DATA
-  ========================= */
+  /* USER CONTEXT */
+  const [currentUserId, setCurrentUserId] = useState(null);
 
   const [applications, setApplications] = useState([]);
-
-  /* ✅ NEW: store current user id */
-  const [currentUserId, setCurrentUserId] = useState(null);
 
   /* =========================
      FETCH APPLICATIONS
   ========================= */
-
   useEffect(() => {
-
     fetch("http://127.0.0.1:8000/applications")
       .then((res) => res.json())
-      .then((data) => {
-        setApplications(data);
-      })
-      .catch((err) => {
-        console.log("Backend fetch error:", err);
-      });
-
+      .then((data) => setApplications(data))
+      .catch((err) => console.log(err));
   }, []);
 
   /* =========================
      FORM SUBMIT
   ========================= */
-
   const handleApplicationSubmit = async (applicationData) => {
+    try {
+      const res = await fetch("http://127.0.0.1:8000/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(applicationData),
+      });
 
-  try {
+      const data = await res.json();
 
-    const res = await fetch("http://127.0.0.1:8000/chat", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(applicationData)
-    });
+      /* STORE USER */
+      setCurrentUserId(data.user_id);
 
-    const result = await res.json();
+      /* ADD CHAT MESSAGE */
+      setChat((prev) => [
+        ...prev,
+        {
+          user: "Loan Application Submitted",
+          bot: data.ai_message,
+        },
+      ]);
 
-    console.log("Backend Response:", result);
+      const newApplication = {
+        ...applicationData,
+        id: Date.now(),
+        status:
+          applicationData.creditScore >= 750
+            ? "Approved"
+            : applicationData.creditScore >= 650
+            ? "Under Review"
+            : "Rejected",
+        recommendationText: data.ai_message,
+        createdAt: new Date().toISOString(),
+      };
 
-    setCurrentUserId(result.user_id);
-
-    alert("Application Submitted!");
-
-  } catch (err) {
-    console.log(err);
-    alert("Backend error");
-  }
-};
-
-  /* =========================
-     SIDEBAR RESIZE
-  ========================= */
-
-  useEffect(() => {
-
-    const handleMouseMove = (e) => {
-      const newWidth = e.clientX;
-
-      if (newWidth >= 220 && newWidth <= 450) {
-        setSidebarWidth(newWidth);
-      }
-    };
-
-    const stopResize = () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", stopResize);
-    };
-
-    const startResize = () => {
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", stopResize);
-    };
-
-    const resizeHandle =
-      document.querySelector(".resize-handle");
-
-    if (resizeHandle) {
-      resizeHandle.addEventListener(
-        "mousedown",
-        startResize
-      );
+      setApplications((prev) => [newApplication, ...prev]);
+    } catch (err) {
+      console.log(err);
     }
-
-    return () => {
-      if (resizeHandle) {
-        resizeHandle.removeEventListener(
-          "mousedown",
-          startResize
-        );
-      }
-    };
-
-  }, []);
-
-  /* =========================
-     UI
-  ========================= */
+  };
 
   return (
     <div className="app">
 
       {/* SIDEBAR */}
-      <div
-        ref={sidebarRef}
-        className="sidebar"
-        style={{ width: `${sidebarWidth}px` }}
-      >
+      <div className="sidebar" style={{ width: sidebarWidth }}>
         <Sidebar
           activePage={activePage}
           setActivePage={setActivePage}
         />
       </div>
 
-      {/* RESIZE HANDLE */}
       <div className="resize-handle"></div>
 
-      {/* MAIN */}
       <div className="main">
-
         <Navbar />
 
         {activePage === "Dashboard" && (
@@ -158,31 +106,29 @@ function App() {
             </div>
           )}
 
-          {/* LOAN FORM */}
+          {/* FORM */}
           {activePage === "Loan Form" && (
             <div className="panel full loan-form">
-              <InputForm
-                onSubmit={handleApplicationSubmit}
-              />
+              <InputForm onSubmit={handleApplicationSubmit} />
             </div>
           )}
 
-          {/* ✅ CHAT (UPDATED) */}
-          {activePage === "Chat Assistant" && (
-            <div className="panel full">
-              <ChatUI userId={currentUserId || 1} />
-            </div>
-          )}
-
-          {/* LOGS */}
-          {activePage === "Logs" && (
-            <div className="panel full">
-              <h2>Logs</h2>
-              <p className="subtitle">
-                Backend activity logs
-              </p>
-            </div>
-          )}
+          {/* ✅ CHAT (ALWAYS MOUNTED) */}
+          <div
+            className="panel full"
+            style={{
+              display:
+                activePage === "Chat Assistant"
+                  ? "block"
+                  : "none",
+            }}
+          >
+            <ChatUI
+              chat={chat}
+              setChat={setChat}
+              userId={currentUserId}
+            />
+          </div>
 
         </div>
       </div>
