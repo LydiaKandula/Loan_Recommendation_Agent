@@ -5,16 +5,11 @@ client = Groq(api_key=GROQ_API_KEY)
 
 def generate_ai_response(messages):
 
-    try:
+    completion = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=messages,
+        temperature=0.5,
+        max_tokens=300
+    )
 
-        completion = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=messages,
-            temperature=0.5,
-            max_tokens=300
-        )
-
-        return completion.choices[0].message.content
-
-    except Exception as e:
-        return str(e)
+    return completion.choices[0].message.content

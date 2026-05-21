@@ -1,4 +1,5 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+
 from app.services.groq_service import generate_ai_response
 from app.core.database import SessionLocal
 from app.models.user import User
@@ -14,8 +15,8 @@ async def chat_ws(ws: WebSocket, user_id: int):
     await ws.accept()
     db = SessionLocal()
 
-    if user_id not in chat_sessions:
-        chat_sessions[user_id] = []
+    # reset session when new user comes
+    chat_sessions[user_id] = []
 
     try:
         while True:
@@ -24,13 +25,13 @@ async def chat_ws(ws: WebSocket, user_id: int):
 
             user = db.query(User).filter(User.id == user_id).first()
 
-            if not user:
-                await ws.send_text("⚠️ Please submit loan form first")
-                continue
-
-            system_prompt = {
-                "role": "system",
-                "content": f"""
+            # 👋 Greeting logic
+            if user_msg.lower() in ["hi", "hello", "hey"]:
+                ai_reply = f"Hello {user.full_name}! 👋 I am your Loan Assistant. I can help you find the best loan based on your profile. Ask me anything!"
+            else:
+                system_prompt = {
+                    "role": "system",
+                    "content": f"""
 You are a smart Loan Assistant.
 
 User Info:
@@ -40,16 +41,23 @@ Loan Type: {user.preferred_loan_type}
 Amount: {user.preferred_amount}
 Tenure: {user.preferred_tenure}
 
-Be conversational and helpful.
+Instructions:
+- Talk like ChatGPT
+- Answer step by step
+- Keep responses short
+- Suggest loans when needed
 """
-            }
+                }
 
-            messages = [system_prompt] + chat_sessions[user_id] + [
-                {"role": "user", "content": user_msg}
-            ]
+                messages = (
+                    [system_prompt]
+                    + chat_sessions[user_id]
+                    + [{"role": "user", "content": user_msg}]
+                )
 
-            ai_reply = generate_ai_response(messages)
+                ai_reply = generate_ai_response(messages)
 
+            # store chat history
             chat_sessions[user_id].append({
                 "role": "user",
                 "content": user_msg
@@ -60,6 +68,7 @@ Be conversational and helpful.
                 "content": ai_reply
             })
 
+            # save interaction
             interaction = Interaction(
                 user_id=user_id,
                 user_message=user_msg,
