@@ -47,11 +47,32 @@ function App() {
 
   /* FORM SUBMIT */
 
-  const handleApplicationSubmit = (applicationData) => {
+  const handleApplicationSubmit = async (applicationData) => {
+
+  try {
+
+    const response = await fetch(
+      "http://127.0.0.1:8000/chat",
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json",
+        },
+
+        body: JSON.stringify(applicationData),
+      }
+    );
+
+    const result = await response.json();
+
     const newApplication = {
       ...applicationData,
 
       id: Date.now(),
+
+      recommendationText:
+        result.ai_message || "No recommendation",
 
       status:
         applicationData.creditScore >= 750
@@ -59,13 +80,25 @@ function App() {
           : applicationData.creditScore >= 650
           ? "Under Review"
           : "Rejected",
+
+      createdAt: new Date(),
     };
 
     setApplications((prev) => [
       newApplication,
       ...prev,
     ]);
-  };
+
+    alert("Application Submitted Successfully!");
+
+  } catch (error) {
+
+    console.log(error);
+
+    alert("Backend connection failed");
+
+  }
+};
 
   /* SIDEBAR RESIZE */
 

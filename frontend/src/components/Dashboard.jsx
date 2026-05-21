@@ -16,7 +16,7 @@ function Dashboard({ applications }) {
               <th>Applicant Name</th>
               <th>Loan Type</th>
               <th>Loan Amount</th>
-              <th>Recommendation</th>              <th>Submitted</th>              <th>Status</th>
+                           <th>Submitted</th>              <th>Status</th>
             </tr>
           </thead>
 
@@ -33,9 +33,7 @@ function Dashboard({ applications }) {
 
                   <td>₹ {app.preferredAmount}</td>
 
-                  <td>
-                    {app.recommendationText ?? "No recommendation"}
-                  </td>
+                  
 
                   <td>
                     {app.createdAt
