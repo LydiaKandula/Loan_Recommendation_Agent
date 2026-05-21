@@ -62,7 +62,18 @@ def recommend_loan(db: Session, user):
 
     prompt = build_loan_prompt(user_data, loan_details)
 
-    ai_response = generate_ai_response(prompt)
+    messages = [
+    {
+        "role": "system",
+        "content": "You are a helpful loan advisor."
+    },
+    {
+        "role": "user",
+        "content": prompt
+    }
+]
+
+    ai_response = generate_ai_response(messages)
 
     return {
         "bank": best_product.bank_name,

@@ -1,4 +1,3 @@
-//App.jsx
 import { useState, useEffect, useRef } from "react";
 
 import Sidebar from "./components/Sidebar";
@@ -11,98 +10,75 @@ import Dashboard from "./components/Dashboard";
 import "./App.css";
 
 function App() {
+
   const [activePage, setActivePage] = useState("Dashboard");
 
   const [sidebarWidth, setSidebarWidth] = useState(260);
 
   const sidebarRef = useRef(null);
 
-  /* MULTIPLE APPLICATIONS */
+  /* =========================
+     APPLICATION DATA
+  ========================= */
 
   const [applications, setApplications] = useState([]);
 
+  /* ✅ NEW: store current user id */
+  const [currentUserId, setCurrentUserId] = useState(null);
+
   /* =========================
-     STEP 5 ADD THIS
+     FETCH APPLICATIONS
   ========================= */
 
   useEffect(() => {
 
     fetch("http://127.0.0.1:8000/applications")
-
       .then((res) => res.json())
-
       .then((data) => {
-
         setApplications(data);
-
       })
-
       .catch((err) => {
-
         console.log("Backend fetch error:", err);
-
       });
 
   }, []);
 
-  /* FORM SUBMIT */
+  /* =========================
+     FORM SUBMIT
+  ========================= */
 
   const handleApplicationSubmit = async (applicationData) => {
 
   try {
 
-    const response = await fetch(
-      "http://127.0.0.1:8000/chat",
-      {
-        method: "POST",
+    const res = await fetch("http://127.0.0.1:8000/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(applicationData)
+    });
 
-        headers: {
-          "Content-Type": "application/json",
-        },
+    const result = await res.json();
 
-        body: JSON.stringify(applicationData),
-      }
-    );
+    console.log("Backend Response:", result);
 
-    const result = await response.json();
+    setCurrentUserId(result.user_id);
 
-    const newApplication = {
-      ...applicationData,
+    alert("Application Submitted!");
 
-      id: Date.now(),
-
-      recommendationText:
-        result.ai_message || "No recommendation",
-
-      status:
-        applicationData.creditScore >= 750
-          ? "Approved"
-          : applicationData.creditScore >= 650
-          ? "Under Review"
-          : "Rejected",
-
-      createdAt: new Date(),
-    };
-
-    setApplications((prev) => [
-      newApplication,
-      ...prev,
-    ]);
-
-    alert("Application Submitted Successfully!");
-
-  } catch (error) {
-
-    console.log(error);
-
-    alert("Backend connection failed");
-
+  } catch (err) {
+    console.log(err);
+    alert("Backend error");
   }
 };
 
-  /* SIDEBAR RESIZE */
+  /* =========================
+     SIDEBAR RESIZE
+  ========================= */
 
   useEffect(() => {
+
     const handleMouseMove = (e) => {
       const newWidth = e.clientX;
 
@@ -112,27 +88,13 @@ function App() {
     };
 
     const stopResize = () => {
-      document.removeEventListener(
-        "mousemove",
-        handleMouseMove
-      );
-
-      document.removeEventListener(
-        "mouseup",
-        stopResize
-      );
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", stopResize);
     };
 
     const startResize = () => {
-      document.addEventListener(
-        "mousemove",
-        handleMouseMove
-      );
-
-      document.addEventListener(
-        "mouseup",
-        stopResize
-      );
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", stopResize);
     };
 
     const resizeHandle =
@@ -153,13 +115,17 @@ function App() {
         );
       }
     };
+
   }, []);
+
+  /* =========================
+     UI
+  ========================= */
 
   return (
     <div className="app">
 
       {/* SIDEBAR */}
-
       <div
         ref={sidebarRef}
         className="sidebar"
@@ -172,12 +138,11 @@ function App() {
       </div>
 
       {/* RESIZE HANDLE */}
-
       <div className="resize-handle"></div>
 
       {/* MAIN */}
-
       <div className="main">
+
         <Navbar />
 
         {activePage === "Dashboard" && (
@@ -187,7 +152,6 @@ function App() {
         <div className="content-grid">
 
           {/* DASHBOARD */}
-
           {activePage === "Dashboard" && (
             <div className="panel full">
               <Dashboard applications={applications} />
@@ -195,7 +159,6 @@ function App() {
           )}
 
           {/* LOAN FORM */}
-
           {activePage === "Loan Form" && (
             <div className="panel full loan-form">
               <InputForm
@@ -204,20 +167,17 @@ function App() {
             </div>
           )}
 
-          {/* CHAT */}
-
+          {/* ✅ CHAT (UPDATED) */}
           {activePage === "Chat Assistant" && (
             <div className="panel full">
-              <ChatUI />
+              <ChatUI userId={currentUserId || 1} />
             </div>
           )}
 
           {/* LOGS */}
-
           {activePage === "Logs" && (
             <div className="panel full">
               <h2>Logs</h2>
-
               <p className="subtitle">
                 Backend activity logs
               </p>

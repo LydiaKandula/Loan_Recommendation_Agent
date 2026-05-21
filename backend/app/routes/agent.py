@@ -45,7 +45,10 @@ def chat(data: dict, db: Session = Depends(get_db)):
     db.add(interaction)
     db.commit()
 
-    return result
+    return {
+        "user_id": user.id,
+        **result
+    }
 
 
 # ==============================
