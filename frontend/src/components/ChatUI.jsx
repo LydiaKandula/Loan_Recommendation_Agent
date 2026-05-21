@@ -1,386 +1,119 @@
-//ChatUI.jsx
+import { useState, useEffect, useRef } from "react";
 
-import { useState, useRef, useEffect } from "react";
-
-function ChatUI() {
+function ChatUI({ userId }) {
 
   const [message, setMessage] = useState("");
-
   const [chat, setChat] = useState([]);
-
-  const [isListening, setIsListening] =
-    useState(false);
-
-  const chatEndRef = useRef(null);
-
-  /* =========================
-     BACKEND WEBSOCKET
-  ========================= */
 
   const socketRef = useRef(null);
 
+  // STOP VOICE
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.hidden) {
+        window.speechSynthesis.cancel();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibility);
+  }, []);
+
   useEffect(() => {
 
-    socketRef.current =
-      new WebSocket(
-        "ws://127.0.0.1:8000/ws/chat"
-      );
+    if (!userId) return;
 
-    /* RECEIVE AI RESPONSE */
+    console.log("Connecting WS for user:", userId);
 
-    socketRef.current.onmessage = (
-      event
-    ) => {
+    socketRef.current = new WebSocket(
+      `ws://127.0.0.1:8000/ws/chat/${userId}`
+    );
 
-      const botReply = event.data;
-
-      setChat((prev) => {
-
-        const updated = [...prev];
-
-        /* UPDATE LAST BOT MESSAGE */
-
-        updated[updated.length - 1] = {
-          ...updated[updated.length - 1],
-
-          bot: botReply,
-        };
-
-        return updated;
-      });
-
-      /* AI VOICE */
-
-      speakResponse(botReply);
+    socketRef.current.onopen = () => {
+      console.log("WS Connected");
     };
 
-    /* SOCKET ERROR */
+    socketRef.current.onmessage = (event) => {
 
-    socketRef.current.onerror = (
-      error
-    ) => {
+      console.log("AI:", event.data);
 
-      console.log(
-        "WebSocket Error:",
-        error
-      );
+      setChat(prev => [
+        ...prev,
+        { bot: event.data }
+      ]);
 
+      speak(event.data);
     };
 
-    /* SOCKET CLOSE */
+    socketRef.current.onerror = (err) => {
+      console.log("WS Error:", err);
+    };
 
     socketRef.current.onclose = () => {
-
-      console.log(
-        "WebSocket Disconnected"
-      );
-
+      console.log("WS Closed");
     };
 
     return () => {
-
-      if (socketRef.current) {
-        socketRef.current.close();
-      }
-
+      if (socketRef.current) socketRef.current.close();
     };
 
-  }, []);
+  }, [userId]);
 
-  /* =========================
-     SPEECH RECOGNITION
-  ========================= */
-
-  const SpeechRecognition =
-    window.SpeechRecognition ||
-    window.webkitSpeechRecognition;
-
-  const recognition =
-    SpeechRecognition
-      ? new SpeechRecognition()
-      : null;
-
-  if (recognition) {
-
-    recognition.continuous = false;
-
-    recognition.lang = "en-US";
-
-    recognition.interimResults = false;
-
-  }
-
-  /* =========================
-     AI VOICE RESPONSE
-  ========================= */
-
-  const speakResponse = (text) => {
-
-    const speech =
-      new SpeechSynthesisUtterance(text);
-
-    speech.lang = "en-US";
-
-    speech.rate = 1;
-
-    speech.pitch = 1;
-
+  const speak = (text) => {
+    window.speechSynthesis.cancel();
+    const speech = new SpeechSynthesisUtterance(text);
     window.speechSynthesis.speak(speech);
   };
-
-  /* =========================
-     SEND MESSAGE
-  ========================= */
 
   const sendMessage = () => {
 
     if (!message.trim()) return;
 
-    const userMessage = message;
+    if (!socketRef.current || socketRef.current.readyState !== 1) {
+      alert("WebSocket not connected");
+      return;
+    }
 
-    /* SHOW USER MESSAGE */
-
-    setChat((prev) => [
+    setChat(prev => [
       ...prev,
-
-      {
-        user: userMessage,
-
-        bot: "Thinking...",
-      },
+      { user: message }
     ]);
 
-    /* SEND TO BACKEND */
-
-    if (
-      socketRef.current &&
-      socketRef.current.readyState === 1
-    ) {
-
-      socketRef.current.send(
-        userMessage
-      );
-
-    } else {
-
-      setChat((prev) => [
-        ...prev,
-
-        {
-          user: userMessage,
-
-          bot: "Backend not connected",
-        },
-      ]);
-
-    }
+    socketRef.current.send(message);
 
     setMessage("");
   };
 
-  /* =========================
-     VOICE INPUT
-  ========================= */
-
-  const handleVoice = () => {
-
-    if (!recognition) {
-
-      alert(
-        "Speech Recognition not supported"
-      );
-
-      return;
-    }
-
-    setIsListening(true);
-
-    recognition.start();
-
-    recognition.onresult = (
-      event
-    ) => {
-
-      const transcript =
-        event.results[0][0].transcript;
-
-      setMessage(transcript);
-
-      /* AUTO SEND VOICE MESSAGE */
-
-      setChat((prev) => [
-        ...prev,
-
-        {
-          user: transcript,
-
-          bot: "Thinking...",
-        },
-      ]);
-
-      if (
-        socketRef.current &&
-        socketRef.current.readyState === 1
-      ) {
-
-        socketRef.current.send(
-          transcript
-        );
-
-      }
-
-      setIsListening(false);
-    };
-
-    recognition.onerror = () => {
-
-      setIsListening(false);
-
-      alert(
-        "Voice recognition error"
-      );
-
-    };
-
-    recognition.onend = () => {
-
-      setIsListening(false);
-
-    };
-  };
-
-  /* =========================
-     AUTO SCROLL
-  ========================= */
-
-  useEffect(() => {
-
-    chatEndRef.current?.scrollIntoView({
-      behavior: "smooth",
-    });
-
-  }, [chat]);
+  if (!userId) {
+    return <p>⚠️ Please submit loan form first</p>;
+  }
 
   return (
     <div>
 
-      {/* HEADER */}
-
-      <div className="assistant-header">
-
-        <div className="assistant-dot"></div>
-
-        <div>
-
-          <h3>
-            Loan Recommendation AI Agent
-          </h3>
-
-        </div>
-
-      </div>
-
-      {/* CHAT BOX */}
-
       <div className="chat-box">
 
-        {chat.length === 0 ? (
-
-          <p className="empty-chat">
-            Start conversation with AI assistant...
-          </p>
-
-        ) : (
-
-          chat.map((item, index) => (
-
-            <div key={index}>
-
-              {/* USER */}
-
-              <div className="user-row">
-
-                <div className="user-message">
-
-                  {item.user}
-
-                </div>
-
-              </div>
-
-              {/* BOT */}
-
-              <div className="bot-row">
-
-                <div className="bot-message">
-
-                  {item.bot}
-
-                </div>
-
-              </div>
-
-            </div>
-
-          ))
-
-        )}
-
-        <div ref={chatEndRef}></div>
+        {chat.map((c, i) => (
+          <div key={i}>
+            {c.user && <div className="user-message">{c.user}</div>}
+            {c.bot && <div className="bot-message">{c.bot}</div>}
+          </div>
+        ))}
 
       </div>
-
-      {/* INPUT */}
 
       <div className="chat-input">
 
         <input
-          type="text"
-          placeholder="Ask about loans..."
           value={message}
-          onChange={(e) =>
-            setMessage(e.target.value)
-          }
-          onKeyDown={(e) =>
-            e.key === "Enter" &&
-            sendMessage()
-          }
+          onChange={(e) => setMessage(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+          placeholder="Type message..."
         />
 
-        {/* MIC */}
-
-        <button
-          type="button"
-          className={`voice-button ${
-            isListening
-              ? "listening"
-              : ""
-          }`}
-          onClick={handleVoice}
-          aria-label="Voice input"
-        >
-
-          <svg
-            className="mic-icon"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-          >
-
-            <path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z" />
-
-            <path d="M19 11a1 1 0 0 0-2 0 5 5 0 0 1-10 0 1 1 0 0 0-2 0 7 7 0 0 0 6 6.92V20H9a1 1 0 0 0 0 2h6a1 1 0 0 0 0-2h-2v-2.08A7 7 0 0 0 19 11z" />
-
-          </svg>
-
-        </button>
-
-        {/* SEND */}
-
-        <button onClick={sendMessage}>
-
-          Send
-
-        </button>
+        <button onClick={sendMessage}>Send</button>
 
       </div>
 
