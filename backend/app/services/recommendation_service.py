@@ -1,9 +1,12 @@
 from sqlalchemy.orm import Session
+
 from app.models.loan_product import LoanProduct
 from app.models.loan_recommendation import LoanRecommendation
+
 from app.services.emi_service import calculate_emi
 from app.services.prompt_service import build_loan_prompt
 from app.services.groq_service import generate_ai_response
+
 
 def recommend_loan(db: Session, user):
 
@@ -11,38 +14,42 @@ def recommend_loan(db: Session, user):
         LoanProduct.loan_type == user.preferred_loan_type
     ).all()
 
-    best = None
+    best_product = None
     lowest_emi = float("inf")
 
-    for p in products:
-        if user.preferred_amount <= p.max_amount:
-           emi = calculate_emi(
-    float(user.preferred_amount),
-    float(p.interest_rate),
-    int(user.preferred_tenure))
+    for product in products:
 
-        if emi < lowest_emi:
+        if float(user.preferred_amount) <= float(product.max_amount):
+
+            emi = calculate_emi(
+                float(user.preferred_amount),
+                float(product.interest_rate),
+                int(user.preferred_tenure)
+            )
+
+            if emi < lowest_emi:
                 lowest_emi = emi
-                best = (p, emi)
+                best_product = product
 
-    if best:
-       product, emi = best
+    if not best_product:
+        return {"message": "No suitable loan found"}
 
-       rec = LoanRecommendation(
+    total_payable = lowest_emi * int(user.preferred_tenure)
+
+    recommendation = LoanRecommendation(
         user_id=user.id,
-        product_id=product.id,
-        emi=emi,
-        total_payable=emi * user.preferred_tenure,
+        product_id=best_product.id,
+        emi=lowest_emi,
+        total_payable=total_payable,
         recommendation_reason="Lowest EMI option"
     )
 
-    db.add(rec)
+    db.add(recommendation)
     db.commit()
 
-    # ✅ Build AI prompt
     loan_details = {
-        "bank": product.bank_name,
-        "emi": emi
+        "bank": best_product.bank_name,
+        "emi": lowest_emi
     }
 
     user_data = {
@@ -55,15 +62,13 @@ def recommend_loan(db: Session, user):
 
     prompt = build_loan_prompt(user_data, loan_details)
 
-    # ✅ AI response
     ai_response = generate_ai_response(prompt)
 
     return {
-        "bank": product.bank_name,
-        "emi": emi,
+        "bank": best_product.bank_name,
+        "loan_type": best_product.loan_type,
+        "interest_rate": float(best_product.interest_rate),
+        "emi": lowest_emi,
+        "total_payable": total_payable,
         "ai_message": ai_response
-    }  
-    return {"message": "No suitable loan found"}
-
-
-
+    }

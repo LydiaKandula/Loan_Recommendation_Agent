@@ -1,15 +1,22 @@
-from fastapi import APIRouter, WebSocket
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+
 from app.services.groq_service import generate_ai_response
 
 router = APIRouter()
 
 @router.websocket("/ws/chat")
 async def chat_ws(ws: WebSocket):
+
     await ws.accept()
 
-    while True:
-        msg = await ws.receive_text()
+    try:
+        while True:
 
-        ai = generate_ai_response(msg)
+            msg = await ws.receive_text()
 
-        await ws.send_text(ai)
+            ai = generate_ai_response(msg)
+
+            await ws.send_text(ai)
+
+    except WebSocketDisconnect:
+        print("WebSocket disconnected")
