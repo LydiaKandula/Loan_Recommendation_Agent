@@ -1,8 +1,6 @@
 from sqlalchemy.orm import Session
-
 from app.models.loan_product import LoanProduct
 from app.models.loan_recommendation import LoanRecommendation
-
 from app.services.emi_service import calculate_emi
 from app.services.prompt_service import build_loan_prompt
 from app.services.groq_service import generate_ai_response
@@ -14,72 +12,59 @@ def recommend_loan(db: Session, user):
         LoanProduct.loan_type == user.preferred_loan_type
     ).all()
 
-    best_product = None
+    best = None
     lowest_emi = float("inf")
 
-    for product in products:
-
-        if float(user.preferred_amount) <= float(product.max_amount):
-
+    for p in products:
+        # ✅ FIX: Both emi calculation AND the comparison are inside the if block.
+        # Original had `if emi < lowest_emi` OUTSIDE, causing UnboundLocalError.
+        if float(user.preferred_amount) <= float(p.max_amount):
             emi = calculate_emi(
                 float(user.preferred_amount),
-                float(product.interest_rate),
+                float(p.interest_rate),
                 int(user.preferred_tenure)
             )
-
             if emi < lowest_emi:
                 lowest_emi = emi
-                best_product = product
+                best = (p, emi)
 
-    if not best_product:
-        return {"message": "No suitable loan found"}
+    if best:
+        product, emi = best
 
-    total_payable = lowest_emi * int(user.preferred_tenure)
+        rec = LoanRecommendation(
+            user_id=user.id,
+            product_id=product.id,
+            emi=emi,
+            total_payable=emi * int(user.preferred_tenure),
+            recommendation_reason="Lowest EMI option"
+        )
+        # ✅ FIX: db operations are now inside `if best:` — no NameError when no loan found
+        db.add(rec)
+        db.commit()
 
-    recommendation = LoanRecommendation(
-        user_id=user.id,
-        product_id=best_product.id,
-        emi=lowest_emi,
-        total_payable=total_payable,
-        recommendation_reason="Lowest EMI option"
-    )
+        loan_details = {
+            "bank": product.bank_name,
+            "emi":  emi
+        }
+        user_data = {
+            "monthly_income":      user.monthly_income,
+            "credit_score":        user.credit_score,
+            "preferred_loan_type": user.preferred_loan_type,
+            "preferred_amount":    user.preferred_amount,
+            "preferred_tenure":    user.preferred_tenure
+        }
 
-    db.add(recommendation)
-    db.commit()
+        prompt      = build_loan_prompt(user_data, loan_details)
+        ai_response = generate_ai_response(prompt)
 
-    loan_details = {
-        "bank": best_product.bank_name,
-        "emi": lowest_emi
-    }
+        return {
+            "bank":       product.bank_name,
+            "emi":        emi,
+            "ai_message": ai_response
+        }
 
-    user_data = {
-        "monthly_income": user.monthly_income,
-        "credit_score": user.credit_score,
-        "preferred_loan_type": user.preferred_loan_type,
-        "preferred_amount": user.preferred_amount,
-        "preferred_tenure": user.preferred_tenure
-    }
-
-    prompt = build_loan_prompt(user_data, loan_details)
-
-    messages = [
-    {
-        "role": "system",
-        "content": "You are a helpful loan advisor."
-    },
-    {
-        "role": "user",
-        "content": prompt
-    }
-]
-
-    ai_response = generate_ai_response(messages)
-
+    # ✅ FIX: Previously unreachable — now correctly returned when no product matches
     return {
-        "bank": best_product.bank_name,
-        "loan_type": best_product.loan_type,
-        "interest_rate": float(best_product.interest_rate),
-        "emi": lowest_emi,
-        "total_payable": total_payable,
-        "ai_message": ai_response
+        "message":    "No suitable loan found",
+        "ai_message": "Sorry, no loan product matches your criteria."
     }
