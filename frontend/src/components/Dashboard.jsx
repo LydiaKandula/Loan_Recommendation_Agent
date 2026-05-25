@@ -1,86 +1,40 @@
-function Dashboard({ applications }) {
+export default function Dashboard({ applications }) {
   return (
     <div>
-
-      <div className="dashboard-headline">
-        <h2>Loan Applications</h2>
-
-        
-      </div>
-
-      <div className="dashboard-table">
+      <h2 className="section-title">Loan Applications</h2>
+      <div className="table-wrap">
         <table>
-
           <thead>
             <tr>
-              <th>Applicant Name</th>
-              <th>Loan Type</th>
-              <th>Loan Amount</th>
-                           <th>Submitted</th>              <th>Status</th>
+              <th>Applicant</th><th>Loan Type</th><th>Amount</th>
+              <th>Bank</th><th>EMI / mo</th><th>Submitted</th><th>Status</th>
             </tr>
           </thead>
-
           <tbody>
-
-            {applications.length > 0 ? (
-              applications.map((app) => (
-
-                <tr key={app.id}>
-
-                  <td>{app.fullName}</td>
-
-                  <td>{app.preferredLoanType}</td>
-
-                  <td>₹ {app.preferredAmount}</td>
-
-                  
-
-                  <td>
-                    {app.createdAt
-                      ? new Date(app.createdAt).toLocaleString()
-                      : "-"}
-                  </td>
-
-                  <td>
-                    <span
-                      className={`status ${
-                        app.status === "Approved"
-                          ? "status-approved"
-                          : app.status === "Rejected"
-                          ? "status-pending"
-                          : "status-under-review"
-                      }`}
-                    >
-                      {app.status}
-                    </span>
-                  </td>
-
-                </tr>
-
-              ))
-            ) : (
-
-              <tr>
-                <td
-                  colSpan="6"
-                  style={{
-                    textAlign: "center",
-                    padding: "20px",
-                  }}
-                >
-                  No applications submitted
+            {applications.length === 0 ? (
+              <tr><td colSpan="7" style={{textAlign:"center",padding:"32px",color:"#64748b"}}>
+                No applications yet. Submit a Loan Form to get started.
+              </td></tr>
+            ) : applications.map(a => (
+              <tr key={a.id}>
+                <td style={{fontWeight:600}}>{a.fullName}</td>
+                <td style={{textTransform:"capitalize"}}>{a.preferredLoanType}</td>
+                <td>₹{Number(a.preferredAmount).toLocaleString("en-IN")}</td>
+                <td>{a.bank || <span style={{color:"#475569"}}>—</span>}</td>
+                <td>{a.emi ? `₹${Number(a.emi).toFixed(0)}` : <span style={{color:"#475569"}}>—</span>}</td>
+                <td style={{color:"#64748b",fontSize:"0.8rem"}}>{a.createdAt ? new Date(a.createdAt).toLocaleDateString() : "—"}</td>
+                <td>
+                  <span className={
+                    a.status==="Approved"    ? "badge badge-green" :
+                    a.status==="Under Review"? "badge badge-amber" :
+                                               "badge badge-red"
+                  }>{a.status}</span>
                 </td>
               </tr>
-
-            )}
-
+            ))}
           </tbody>
-
         </table>
       </div>
-
     </div>
   );
 }
-
-export default Dashboard;

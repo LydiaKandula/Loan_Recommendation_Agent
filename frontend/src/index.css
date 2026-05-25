@@ -1,38 +1,5 @@
-/* frontend/src/index.css
-   ✅ FIX: Removed #root width/border/flex rules that conflicted with App.css.
-   Keep only global resets and typography here. */
-
-*, *::before, *::after {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: #0b1120;
-  color: #e2e8f0;
-  font-size: 14px;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-#root {
-  width: 100%;
-  min-height: 100vh;
-}
-
-h1, h2, h3 {
-  margin: 0;
-}
-
-p {
-  margin: 0;
-}
-
-button, input, select, textarea {
-  font: inherit;
-}
-
-button {
-  cursor: pointer;
-}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body,#root{height:100%;width:100%;}
+body{font-family:'DM Sans','Segoe UI',sans-serif;background:#060d1a;color:#e2e8f0;font-size:14px;-webkit-font-smoothing:antialiased;}
+button,input,select,textarea{font:inherit;}
+button{cursor:pointer;}
