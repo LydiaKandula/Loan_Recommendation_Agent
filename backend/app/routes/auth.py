@@ -1,94 +1,91 @@
-"""
-backend/app/routes/auth.py
-Simple username + password auth using bcrypt.
-No JWT for now — returns a plain session token stored in localStorage.
-For production, swap to JWT + httpOnly cookies.
-"""
-
+# backend/app/routes/auth.py
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 from app.core.database import get_db
 from app.models.auth_user import AuthUser
-import bcrypt
-import secrets
+import hashlib, secrets
 
-router = APIRouter()
+router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-@router.post("/auth/signup")
-def signup(data: dict, db: Session = Depends(get_db)):
-    username = (data.get("username") or "").strip().lower()
-    password = data.get("password") or ""
-    full_name = (data.get("fullName") or data.get("full_name") or "").strip()
+# ── helpers ─────────────────────────────────────────────────────────────────
+def _hash(password: str) -> str:
+    """Simple SHA-256 hash. For production use bcrypt."""
+    return hashlib.sha256(password.encode()).hexdigest()
 
-    if not username or not password:
-        raise HTTPException(status_code=400, detail="Username and password are required.")
-    if len(username) < 3:
-        raise HTTPException(status_code=400, detail="Username must be at least 3 characters.")
-    if len(password) < 6:
-        raise HTTPException(status_code=400, detail="Password must be at least 6 characters.")
 
-    existing = db.query(AuthUser).filter(AuthUser.username == username).first()
-    if existing:
-        raise HTTPException(status_code=409, detail="Username already taken.")
+def _make_token(user_id: int, username: str) -> str:
+    """Stateless token: base64(user_id:username:rand). Good enough for intern demo."""
+    import base64
+    raw = f"{user_id}:{username}:{secrets.token_hex(8)}"
+    return base64.urlsafe_b64encode(raw.encode()).decode()
 
-    hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-    token  = secrets.token_hex(32)
+
+def decode_token(token: str) -> dict | None:
+    """Decode token → {id, username} or None."""
+    try:
+        import base64
+        raw = base64.urlsafe_b64decode(token.encode()).decode()
+        parts = raw.split(":")
+        return {"id": int(parts[0]), "username": parts[1]}
+    except Exception:
+        return None
+
+
+# ── schemas ──────────────────────────────────────────────────────────────────
+class SignupRequest(BaseModel):
+    username: str
+    email:    str
+    password: str
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+# ── endpoints ─────────────────────────────────────────────────────────────────
+@router.post("/signup")
+def signup(body: SignupRequest, db: Session = Depends(get_db)):
+    if not body.username.strip() or not body.password:
+        raise HTTPException(400, "Username and password required")
+
+    if db.query(AuthUser).filter(AuthUser.username == body.username).first():
+        raise HTTPException(409, "Username already taken")
+
+    if db.query(AuthUser).filter(AuthUser.email == body.email).first():
+        raise HTTPException(409, "Email already registered")
 
     user = AuthUser(
-        username=username,
-        full_name=full_name or username,
-        hashed_password=hashed,
-        session_token=token,
+        username=body.username.strip(),
+        email=body.email.strip(),
+        password_hash=_hash(body.password),
     )
     db.add(user)
     db.commit()
     db.refresh(user)
 
-    return {
-        "token":    token,
-        "userId":   user.id,
-        "username": user.username,
-        "fullName": user.full_name,
-    }
+    token = _make_token(user.id, user.username)
+    return {"token": token, "userId": user.id, "username": user.username}
 
 
-@router.post("/auth/login")
-def login(data: dict, db: Session = Depends(get_db)):
-    username = (data.get("username") or "").strip().lower()
-    password = data.get("password") or ""
+@router.post("/login")
+def login(body: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(AuthUser).filter(AuthUser.username == body.username).first()
+    if not user or user.password_hash != _hash(body.password):
+        raise HTTPException(401, "Invalid username or password")
 
-    user = db.query(AuthUser).filter(AuthUser.username == username).first()
-    if not user or not bcrypt.checkpw(password.encode(), user.hashed_password.encode()):
-        raise HTTPException(status_code=401, detail="Invalid username or password.")
-
-    # Rotate session token on every login
-    token = secrets.token_hex(32)
-    user.session_token = token
-    db.commit()
-
-    return {
-        "token":    token,
-        "userId":   user.id,
-        "username": user.username,
-        "fullName": user.full_name,
-    }
+    token = _make_token(user.id, user.username)
+    return {"token": token, "userId": user.id, "username": user.username}
 
 
-@router.post("/auth/logout")
-def logout(data: dict, db: Session = Depends(get_db)):
-    token = data.get("token")
-    if token:
-        user = db.query(AuthUser).filter(AuthUser.session_token == token).first()
-        if user:
-            user.session_token = None
-            db.commit()
-    return {"ok": True}
-
-
-@router.get("/auth/me")
+@router.get("/me")
 def me(token: str, db: Session = Depends(get_db)):
-    user = db.query(AuthUser).filter(AuthUser.session_token == token).first()
+    payload = decode_token(token)
+    if not payload:
+        raise HTTPException(401, "Invalid token")
+    user = db.query(AuthUser).filter(AuthUser.id == payload["id"]).first()
     if not user:
-        raise HTTPException(status_code=401, detail="Invalid or expired session.")
-    return {"userId": user.id, "username": user.username, "fullName": user.full_name}
+        raise HTTPException(404, "User not found")
+    return {"id": user.id, "username": user.username, "email": user.email}

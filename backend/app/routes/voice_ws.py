@@ -1,6 +1,6 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from app.services.speech_service import speech_to_text
-from app.services.tts_service import speak
+from app.services.tts_service import synthesise
 from app.services.groq_service import generate_ai_response
 from app.models.interaction import Interaction
 from app.core.database import SessionLocal
@@ -38,7 +38,7 @@ async def voice_ws(ws: WebSocket):
             ai_response = generate_ai_response(user_text)
 
             # TTS on server side (optional — browser TTS in ChatUI is preferred)
-            speak(ai_response)
+            synthesise(ai_response)
 
             interaction = Interaction(
                 user_id=user_id,
