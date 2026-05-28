@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "./context/AuthContext";
 import AuthPage      from "./pages/AuthPage";
 import Dashboard     from "./components/Dashboard";
@@ -6,23 +6,27 @@ import StatsCards    from "./components/StatsCards";
 import InputForm     from "./components/InputForm";
 import ChatUI        from "./components/ChatUI";
 import Logs          from "./components/Logs";
+import VoiceCalls    from "./components/VoiceCalls";
+import SuccessModal  from "./components/SuccessModal";
 import "./App.css";
 
 const API = "http://127.0.0.1:8000";
 
 const NAV = [
-  { id:"Dashboard",      icon:"▦",  label:"Dashboard" },
+  { id:"Dashboard",      icon:"⊞",  label:"Dashboard" },
   { id:"Loan Form",      icon:"✦",  label:"Loan Form" },
   { id:"Chat Assistant", icon:"◈",  label:"Chat Assistant" },
+  { id:"Voice Calls",    icon:"✆",  label:"Voice Calls" },
   { id:"Logs",           icon:"≡",  label:"Logs" },
 ];
 
 export default function App() {
   const { auth, logout } = useAuth();
-  const [page, setPage]           = useState("Dashboard");
-  const [applications, setApps]   = useState([]);
-  const [loading, setLoading]     = useState(false);
-  const [lastApp, setLastApp]     = useState(null);
+  const [page, setPage]         = useState("Dashboard");
+  const [applications, setApps] = useState([]);
+  const [loading, setLoading]   = useState(false);
+  const [lastApp, setLastApp]   = useState(null);
+  const [successData, setSuccessData] = useState(null); // for success modal
 
   const headers = auth?.token
     ? { "Content-Type":"application/json", Authorization:`Bearer ${auth.token}` }
@@ -37,7 +41,7 @@ export default function App() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { if (auth) fetchApps(); }, [auth]);  // eslint-disable-line
+  useEffect(() => { if (auth) fetchApps(); }, [auth]); // eslint-disable-line
 
   const handleSubmit = (data) => {
     fetch(`${API}/chat`, { method:"POST", headers, body: JSON.stringify(data) })
@@ -45,25 +49,42 @@ export default function App() {
       .then(result => {
         const enriched = {
           ...data,
-          bank: result.bank || null,
-          emi:  result.emi  || null,
+          bank:      result.bank || null,
+          emi:       result.emi  || null,
           aiMessage: result.ai_message || null,
-          status: data.creditScore >= 750 ? "Approved" : data.creditScore >= 650 ? "Under Review" : "Rejected",
+          status:    data.creditScore >= 750 ? "Approved"
+                   : data.creditScore >= 650 ? "Under Review" : "Rejected",
         };
         setLastApp(enriched);
         fetchApps();
-        setPage("Chat Assistant");
-        alert(result.bank
-          ? `✅ Best loan: ${result.bank} — EMI ₹${result.emi}/month`
-          : "No matching loan found. Chat can help explore options.");
+        // Show professional success modal instead of browser alert
+        setSuccessData({
+          name:     data.fullName,
+          loanType: data.preferredLoanType,
+          amount:   data.preferredAmount,
+          bank:     result.bank,
+          emi:      result.emi,
+          status:   enriched.status,
+        });
       })
-      .catch(err => { console.error(err); alert("Submission failed. Is the backend running?"); });
+      .catch(err => {
+        console.error(err);
+        alert("Submission failed. Is the backend running?");
+      });
   };
 
   if (!auth) return <AuthPage />;
 
   return (
     <div className="shell">
+      {/* SUCCESS MODAL */}
+      {successData && (
+        <SuccessModal
+          data={successData}
+          onClose={() => { setSuccessData(null); setPage("Chat Assistant"); }}
+        />
+      )}
+
       {/* ── SIDEBAR ── */}
       <aside className="sidebar">
         <div className="sidebar-logo">
@@ -76,7 +97,8 @@ export default function App() {
 
         <nav className="sidebar-nav">
           {NAV.map(n => (
-            <button key={n.id} className={`nav-btn ${page===n.id?"active":""}`}
+            <button key={n.id}
+              className={`nav-btn ${page===n.id ? "active" : ""}`}
               onClick={() => setPage(n.id)}>
               <span className="nav-icon">{n.icon}</span>
               <span>{n.label}</span>
@@ -95,20 +117,14 @@ export default function App() {
 
       {/* ── MAIN ── */}
       <main className="main">
-        {/* TOP BAR */}
         <header className="topbar">
-          <div className="topbar-left">
-            <h1 className="page-title">{page}</h1>
-          </div>
-          <div className="live-badge">
-            <span className="live-dot" /> Live
-          </div>
+          <h1 className="page-title">{page}</h1>
+          <div className="live-badge"><span className="live-dot" /> Live</div>
         </header>
 
-        {/* CONTENT — all panels rendered, hidden with CSS — no remount on tab switch */}
         <div className="content">
 
-          {/* DASHBOARD */}
+          {/* DASHBOARD — always rendered but hidden when not active */}
           <div style={{ display: page==="Dashboard" ? "contents" : "none" }}>
             {loading
               ? <div className="loading-state">Loading applications…</div>
@@ -124,16 +140,29 @@ export default function App() {
             <div className="panel"><InputForm onSubmit={handleSubmit} /></div>
           </div>
 
-          {/* CHAT — always mounted, never remounts */}
+          {/* CHAT — mounted always, but WS only connects when this tab is active */}
           <div style={{ display: page==="Chat Assistant" ? "block" : "none" }}>
             <div className="panel chat-panel">
-              <ChatUI lastApplication={lastApp} authToken={auth?.token} />
+              <ChatUI
+                lastApplication={lastApp}
+                authToken={auth?.token}
+                isActive={page === "Chat Assistant"}
+              />
             </div>
           </div>
 
-          {/* LOGS */}
+          {/* VOICE CALLS */}
+          <div style={{ display: page==="Voice Calls" ? "block" : "none" }}>
+            <div className="panel">
+              <VoiceCalls authToken={auth?.token} />
+            </div>
+          </div>
+
+          {/* LOGS — refetch when tab becomes active */}
           <div style={{ display: page==="Logs" ? "block" : "none" }}>
-            <div className="panel"><Logs authToken={auth?.token} /></div>
+            <div className="panel">
+              <Logs authToken={auth?.token} isActive={page === "Logs"} />
+            </div>
           </div>
 
         </div>
