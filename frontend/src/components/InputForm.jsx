@@ -1,353 +1,183 @@
 import { useState } from "react";
 
-function InputForm({ onSubmit }) {
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [age, setAge] = useState("");
-  const [job, setJob] = useState("");
-  const [monthlyIncome, setMonthlyIncome] = useState("");
-  const [monthlyExpenses, setMonthlyExpenses] = useState("");
-  const [creditScore, setCreditScore] = useState("");
-  const [preferredLoanType, setPreferredLoanType] = useState("personal");
-  const [preferredAmount, setPreferredAmount] = useState("");
-  const [preferredTenure, setPreferredTenure] = useState("");
-  const [errors, setErrors] = useState({});
+const COUNTRY_CODES = [
+  { code:"+91",  country:"IN", label:"🇮🇳 +91"  },
+  { code:"+1",   country:"US", label:"🇺🇸 +1"   },
+  { code:"+44",  country:"GB", label:"🇬🇧 +44"  },
+  { code:"+971", country:"AE", label:"🇦🇪 +971" },
+  { code:"+65",  country:"SG", label:"🇸🇬 +65"  },
+  { code:"+61",  country:"AU", label:"🇦🇺 +61"  },
+  { code:"+49",  country:"DE", label:"🇩🇪 +49"  },
+  { code:"+33",  country:"FR", label:"🇫🇷 +33"  },
+  { code:"+81",  country:"JP", label:"🇯🇵 +81"  },
+  { code:"+86",  country:"CN", label:"🇨🇳 +86"  },
+];
 
-  const validateEmail = (value) => /^\S+@\S+\.\S+$/.test(value);
+export default function InputForm({ onSubmit }) {
+  const [form, setForm] = useState({
+    fullName:"", email:"", countryCode:"+91", phone:"",
+    age:"", job:"", monthlyIncome:"", monthlyExpenses:"",
+    creditScore:"", preferredLoanType:"personal",
+    preferredAmount:"", preferredTenure:"",
+  });
+  const [errors, setErrors]   = useState({});
+  const [loading, setLoading] = useState(false);
 
-  const validatePhone = (value) => {
-    const digits = value.replace(/\D/g, "");
-    return /^\d{10,15}$/.test(digits);
+  const set = (k) => (e) => {
+    const v = e.target.value;
+    setForm(p => ({ ...p, [k]: v }));
+    if (errors[k]) setErrors(p => { const n={...p}; delete n[k]; return n; });
   };
 
-  const isInteger = (value) => /^\d+$/.test(value);
-
-  const validateField = (field, value, values) => {
-    const trimmed = value.trim();
-
-    switch (field) {
-      case "fullName":
-        return trimmed ? "" : "Full name is required.";
-      case "email":
-        if (!trimmed) return "Email is required.";
-        return validateEmail(trimmed) ? "" : "Enter a valid email address.";
-      case "phone":
-        if (!trimmed) return "Phone number is required.";
-        return validatePhone(trimmed)
-          ? ""
-          : "Enter a valid phone number with 10–15 digits.";
-      case "age":
-        if (!trimmed) return "Age is required.";
-        return isInteger(trimmed) && Number(trimmed) >= 18 && Number(trimmed) <= 100
-          ? ""
-          : "Age must be a whole number between 18 and 100.";
-      case "job":
-        return trimmed ? "" : "Job title is required.";
-      case "monthlyIncome":
-        if (!trimmed) return "Monthly income is required.";
-        return Number(trimmed) > 0 ? "" : "Monthly income must be greater than zero.";
-      case "monthlyExpenses":
-        if (!trimmed) return "Monthly expenses are required.";
-        if (Number(trimmed) < 0) return "Monthly expenses cannot be negative.";
-        if (values.monthlyIncome.trim() && Number(trimmed) > Number(values.monthlyIncome)) {
-          return "Expenses cannot be greater than income.";
-        }
-        return "";
-      case "creditScore":
-        if (!trimmed) return "Credit score is required.";
-        return isInteger(trimmed) && Number(trimmed) >= 300 && Number(trimmed) <= 850
-          ? ""
-          : "Credit score must be between 300 and 850.";
-      case "preferredAmount":
-        if (!trimmed) return "Preferred loan amount is required.";
-        return Number(trimmed) > 0 ? "" : "Preferred loan amount must be greater than zero.";
-      case "preferredTenure":
-        if (!trimmed) return "Preferred tenure is required.";
-        return isInteger(trimmed) && Number(trimmed) >= 1 && Number(trimmed) <= 360
-          ? ""
-          : "Preferred tenure must be between 1 and 360 months.";
-      default:
-        return "";
-    }
+  const validate = () => {
+    const e = {};
+    if (!form.fullName.trim())   e.fullName  = "Full name is required";
+    if (!/^\S+@\S+\.\S+$/.test(form.email)) e.email = "Valid email required";
+    if (!form.phone.trim() || !/^\d{6,15}$/.test(form.phone.replace(/\s/g,"")))
+      e.phone = "Valid phone number required";
+    if (!form.age || +form.age < 18 || +form.age > 100) e.age = "Age must be 18–100";
+    if (!form.job.trim())        e.job       = "Job title is required";
+    if (!form.monthlyIncome || +form.monthlyIncome <= 0) e.monthlyIncome = "Monthly income required";
+    if (form.monthlyExpenses !== "" && +form.monthlyExpenses > +form.monthlyIncome)
+      e.monthlyExpenses = "Expenses cannot exceed income";
+    if (!form.creditScore || +form.creditScore < 300 || +form.creditScore > 850)
+      e.creditScore = "Credit score must be 300–850";
+    if (!form.preferredAmount || +form.preferredAmount <= 0) e.preferredAmount = "Loan amount required";
+    if (!form.preferredTenure || +form.preferredTenure < 1 || +form.preferredTenure > 360)
+      e.preferredTenure = "Tenure must be 1–360 months";
+    return e;
   };
 
-  const updateField = (field, value, setter) => {
-    const currentValues = {
-      fullName,
-      email,
-      phone,
-      age,
-      job,
-      monthlyIncome,
-      monthlyExpenses,
-      creditScore,
-      preferredAmount,
-      preferredTenure,
-      preferredLoanType,
-      [field]: value,
-    };
-
-    setter(value);
-
-    setErrors((prev) => {
-      const next = { ...prev };
-      const fieldError = validateField(field, value, currentValues);
-
-      if (fieldError) {
-        next[field] = fieldError;
-      } else {
-        delete next[field];
-      }
-
-      if (field === "monthlyIncome" || field === "monthlyExpenses") {
-        const expenseError = validateField(
-          "monthlyExpenses",
-          currentValues.monthlyExpenses,
-          currentValues
-        );
-
-        if (expenseError) {
-          next.monthlyExpenses = expenseError;
-        } else {
-          delete next.monthlyExpenses;
-        }
-      }
-
-      return next;
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const errs = validate();
+    if (Object.keys(errs).length) { setErrors(errs); return; }
+    setLoading(true);
+    onSubmit({
+      fullName:          form.fullName.trim(),
+      email:             form.email.trim(),
+      phone:             `${form.countryCode}${form.phone.trim()}`,
+      age:               +form.age,
+      job:               form.job.trim(),
+      monthlyIncome:     +form.monthlyIncome,
+      monthlyExpenses:   +form.monthlyExpenses || 0,
+      creditScore:       +form.creditScore,
+      preferredLoanType: form.preferredLoanType,
+      preferredAmount:   +form.preferredAmount,
+      preferredTenure:   +form.preferredTenure,
     });
+    setTimeout(() => setLoading(false), 4000);
   };
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
+  const F = ({ label, name, type="text", min, max, step, placeholder, children }) => (
+    <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
+      <label style={{ fontSize:"0.74rem", fontWeight:600, textTransform:"uppercase",
+        letterSpacing:"0.05em", color:"#94a3b8", marginBottom:0 }}>{label}</label>
+      {children || (
+        <input
+          type={type} min={min} max={max} step={step}
+          placeholder={placeholder}
+          value={form[name]} onChange={set(name)}
+          className={errors[name] ? "invalid" : ""}
+          style={{ height:42, borderRadius:9, border:`1px solid ${errors[name]?"rgba(239,68,68,0.6)":"rgba(255,255,255,0.1)"}`,
+            background:"rgba(255,255,255,0.04)", color:"#e2e8f0",
+            padding:"0 13px", fontSize:"0.875rem", outline:"none",
+            transition:"border-color 0.2s, box-shadow 0.2s" }}
+        />
+      )}
+      {errors[name] && <span style={{ fontSize:"0.73rem", color:"#fca5a5" }}>{errors[name]}</span>}
+    </div>
+  );
 
-    const values = {
-      fullName,
-      email,
-      phone,
-      age,
-      job,
-      monthlyIncome,
-      monthlyExpenses,
-      creditScore,
-      preferredAmount,
-      preferredTenure,
-      preferredLoanType,
-    };
-
-    const nextErrors = {};
-    const fieldsToValidate = [
-      "fullName",
-      "email",
-      "phone",
-      "age",
-      "job",
-      "monthlyIncome",
-      "monthlyExpenses",
-      "creditScore",
-      "preferredAmount",
-      "preferredTenure",
-    ];
-
-    fieldsToValidate.forEach((field) => {
-      const error = validateField(field, values[field], values);
-      if (error) nextErrors[field] = error;
-    });
-
-    if (Object.keys(nextErrors).length > 0) {
-      setErrors(nextErrors);
-      return;
-    }
-
-    const application = {
-      fullName: fullName.trim(),
-      email: email.trim(),
-      phone: phone.trim(),
-      age: Number(age),
-      job: job.trim(),
-      monthlyIncome: Number(monthlyIncome),
-      monthlyExpenses: Number(monthlyExpenses),
-      creditScore: Number(creditScore),
-      preferredLoanType,
-      preferredAmount: Number(preferredAmount),
-      preferredTenure: Number(preferredTenure),
-    };
-
-    if (onSubmit) {
-      onSubmit(application);
-    }
-
-    setErrors({});
-    alert("Application Submitted!");
+  const inputSx = {
+    height:42, borderRadius:9, border:"1px solid rgba(255,255,255,0.1)",
+    background:"rgba(255,255,255,0.04)", color:"#e2e8f0",
+    padding:"0 13px", fontSize:"0.875rem", outline:"none",
   };
 
   return (
     <form onSubmit={handleSubmit}>
-      <h2>Loan Application</h2>
+      <h2 style={{ fontSize:"1.1rem", fontWeight:700, color:"#fff", letterSpacing:"-0.02em", marginBottom:4 }}>
+        Loan Application
+      </h2>
+      <p style={{ fontSize:"0.82rem", color:"#64748b", marginBottom:24 }}>
+        Fill in your details to get a personalised loan recommendation
+      </p>
 
       <div className="form-grid">
-        <div>
-          <label>Full Name</label>
-          <input
-            className={errors.fullName ? "invalid" : ""}
-            type="text"
-            placeholder="Enter full name"
-            value={fullName}
-            onChange={(e) => updateField("fullName", e.target.value, setFullName)}
-          />
-          {errors.fullName && <p className="field-error">{errors.fullName}</p>}
+        <F label="Full Name"      name="fullName"       placeholder="Enter full name" />
+        <F label="Email"          name="email"          type="email"  placeholder="Enter email" />
+
+        {/* Phone with country code */}
+        <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
+          <label style={{ fontSize:"0.74rem", fontWeight:600, textTransform:"uppercase",
+            letterSpacing:"0.05em", color:"#94a3b8" }}>Phone Number</label>
+          <div style={{ display:"flex", gap:8 }}>
+            <select value={form.countryCode} onChange={set("countryCode")}
+              style={{ ...inputSx, width:110, padding:"0 8px", flexShrink:0 }}>
+              {COUNTRY_CODES.map(c => (
+                <option key={c.code} value={c.code}>{c.label}</option>
+              ))}
+            </select>
+            <input type="tel" placeholder="Phone number"
+              value={form.phone} onChange={set("phone")}
+              style={{ ...inputSx, flex:1, border:`1px solid ${errors.phone?"rgba(239,68,68,0.6)":"rgba(255,255,255,0.1)"}` }}/>
+          </div>
+          {errors.phone && <span style={{ fontSize:"0.73rem", color:"#fca5a5" }}>{errors.phone}</span>}
         </div>
 
-        <div>
-          <label>Email</label>
-          <input
-            className={errors.email ? "invalid" : ""}
-            type="email"
-            placeholder="Enter email"
-            value={email}
-            onChange={(e) => updateField("email", e.target.value, setEmail)}
-          />
-          {errors.email && <p className="field-error">{errors.email}</p>}
-        </div>
+        <F label="Age"             name="age"            type="number" min="18" max="100" placeholder="Age" />
+        <F label="Job Title"       name="job"            placeholder="e.g. Software Engineer" />
+        <F label="Monthly Income ₹" name="monthlyIncome"  type="number" min="0" step="100" placeholder="50000" />
+        <F label="Monthly Expenses ₹" name="monthlyExpenses" type="number" min="0" step="100" placeholder="20000" />
+        <F label="Credit Score"    name="creditScore"    type="number" min="300" max="850" placeholder="300–850" />
 
-        <div>
-          <label>Phone</label>
-          <input
-            className={errors.phone ? "invalid" : ""}
-            type="tel"
-            placeholder="Enter phone number"
-            value={phone}
-            onChange={(e) => updateField("phone", e.target.value, setPhone)}
-          />
-          {errors.phone && <p className="field-error">{errors.phone}</p>}
-        </div>
-
-        <div>
-          <label>Age</label>
-          <input
-            className={errors.age ? "invalid" : ""}
-            type="number"
-            min="18"
-            max="100"
-            placeholder="Enter age"
-            value={age}
-            onChange={(e) => updateField("age", e.target.value, setAge)}
-          />
-          {errors.age && <p className="field-error">{errors.age}</p>}
-        </div>
-
-        <div>
-          <label>Job</label>
-          <input
-            className={errors.job ? "invalid" : ""}
-            type="text"
-            placeholder="Enter job title"
-            value={job}
-            onChange={(e) => updateField("job", e.target.value, setJob)}
-          />
-          {errors.job && <p className="field-error">{errors.job}</p>}
-        </div>
-
-        <div>
-          <label>Monthly Income</label>
-          <input
-            className={errors.monthlyIncome ? "invalid" : ""}
-            type="number"
-            min="0"
-            step="0.01"
-            placeholder="Enter monthly income"
-            value={monthlyIncome}
-            onChange={(e) => updateField("monthlyIncome", e.target.value, setMonthlyIncome)}
-          />
-          {errors.monthlyIncome && (
-            <p className="field-error">{errors.monthlyIncome}</p>
-          )}
-        </div>
-
-        <div>
-          <label>Monthly Expenses</label>
-          <input
-            className={errors.monthlyExpenses ? "invalid" : ""}
-            type="number"
-            min="0"
-            step="0.01"
-            placeholder="Enter monthly expenses"
-            value={monthlyExpenses}
-            onChange={(e) => updateField("monthlyExpenses", e.target.value, setMonthlyExpenses)}
-          />
-          {errors.monthlyExpenses && (
-            <p className="field-error">{errors.monthlyExpenses}</p>
-          )}
-        </div>
-
-        <div>
-          <label>Credit Score</label>
-          <input
-            className={errors.creditScore ? "invalid" : ""}
-            type="number"
-            min="300"
-            max="850"
-            placeholder="Enter credit score"
-            value={creditScore}
-            onChange={(e) => updateField("creditScore", e.target.value, setCreditScore)}
-          />
-          {errors.creditScore && (
-            <p className="field-error">{errors.creditScore}</p>
-          )}
-        </div>
-
-        <div>
-          <label>Preferred Loan Type</label>
-          <select
-            value={preferredLoanType}
-            onChange={(e) => setPreferredLoanType(e.target.value)}
-          >
-            <option value="personal">Personal</option>
-            <option value="home">Home</option>
-            <option value="car">Car</option>
-            <option value="business">Business</option>
-            <option value="education">Education</option>
+        <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
+          <label style={{ fontSize:"0.74rem", fontWeight:600, textTransform:"uppercase",
+            letterSpacing:"0.05em", color:"#94a3b8" }}>Loan Type</label>
+          <select value={form.preferredLoanType} onChange={set("preferredLoanType")} style={inputSx}>
+            {["personal","home","car","business","education"].map(t => (
+              <option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>
+            ))}
           </select>
         </div>
 
-        <div>
-          <label>Preferred Amount</label>
-          <input
-            className={errors.preferredAmount ? "invalid" : ""}
-            type="number"
-            min="0"
-            step="0.01"
-            placeholder="Enter preferred loan amount"
-            value={preferredAmount}
-            onChange={(e) => updateField("preferredAmount", e.target.value, setPreferredAmount)}
-          />
-          {errors.preferredAmount && (
-            <p className="field-error">{errors.preferredAmount}</p>
-          )}
-        </div>
-
-        <div>
-          <label>Preferred Tenure (months)</label>
-          <input
-            className={errors.preferredTenure ? "invalid" : ""}
-            type="number"
-            min="1"
-            max="360"
-            placeholder="Enter preferred tenure"
-            value={preferredTenure}
-            onChange={(e) => updateField("preferredTenure", e.target.value, setPreferredTenure)}
-          />
-          {errors.preferredTenure && (
-            <p className="field-error">{errors.preferredTenure}</p>
-          )}
-        </div>
+        <F label="Loan Amount ₹"   name="preferredAmount"  type="number" min="0" step="1000" placeholder="300000" />
+        <F label="Tenure (months)" name="preferredTenure"  type="number" min="1"  max="360"  placeholder="36" />
       </div>
 
-      <button type="submit" style={{ marginTop: "20px" }}>
-        Submit Application
+      {/* Submit button */}
+      <button type="submit" disabled={loading}
+        style={{
+          marginTop:28, height:50, padding:"0 32px",
+          borderRadius:12, border:"none",
+          background: loading ? "rgba(255,255,255,0.06)" : "linear-gradient(135deg,#2563eb,#1d4ed8)",
+          color: loading ? "#64748b" : "#fff",
+          fontSize:"0.92rem", fontWeight:700, letterSpacing:"-0.01em",
+          cursor: loading ? "not-allowed" : "pointer",
+          boxShadow: loading ? "none" : "0 4px 20px rgba(37,99,235,0.4)",
+          display:"flex", alignItems:"center", gap:10,
+          transition:"all 0.2s",
+        }}>
+        {loading ? (
+          <>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+              style={{ animation:"spin 1s linear infinite" }}>
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+            </svg>
+            Processing…
+          </>
+        ) : (
+          <>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
+              <path d="M9 12l2 2 4-4"/>
+            </svg>
+            Submit Application
+          </>
+        )}
       </button>
+      <style>{`@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}`}</style>
     </form>
   );
 }
-
-export default InputForm;
