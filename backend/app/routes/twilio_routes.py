@@ -337,14 +337,40 @@ def generate_analytics(
             "Be practical and concise."
         )
 
-    summary   = generate_ai_response(prompt)
-    sentiment = (
-        "positive" if any(w in summary.lower()
-            for w in ["positive","satisfied","interested","happy","great","excellent"])
-        else "negative" if any(w in summary.lower()
-            for w in ["negative","unhappy","failed","no-answer","confused","dissatisfied"])
-        else "neutral"
-    )
+    # ── Step 1: get plain summary ────────────────────────────────────────────
+    summary = generate_ai_response(prompt)
+
+    # ── Step 2: ask Groq explicitly for sentiment ─────────────────────────
+    # Keyword scanning was unreliable — Groq writes "the customer seemed
+    # interested" not the word "positive", so keywords never matched.
+    # Now we ask Groq directly with a forced single-word answer.
+    if has_transcript:
+        sentiment_prompt = (
+            f"Read this call transcript and the summary below.\n\n"
+            f"Transcript:\n{log.transcript}\n\n"
+            f"Summary:\n{summary}\n\n"
+            "Based on the customer's tone and words, what was the customer's sentiment?\n"
+            "Reply with EXACTLY one word — either: positive, neutral, or negative.\n"
+            "Do not write anything else. Just the one word."
+        )
+    else:
+        sentiment_prompt = (
+            f"A phone call had status '{log.status}' and lasted "
+            f"{log.duration_sec or 0} seconds.\n"
+            "Based only on this, what was the likely customer sentiment?\n"
+            "Reply with EXACTLY one word — either: positive, neutral, or negative.\n"
+            "Do not write anything else. Just the one word."
+        )
+
+    raw_sentiment = generate_ai_response(sentiment_prompt).strip().lower()
+
+    # Normalise — Groq sometimes says "positive." or "the sentiment is positive"
+    if "positive" in raw_sentiment:
+        sentiment = "positive"
+    elif "negative" in raw_sentiment:
+        sentiment = "negative"
+    else:
+        sentiment = "neutral"
 
     log.ai_summary = summary
     log.sentiment  = sentiment
