@@ -1,17 +1,24 @@
 import { useState, useEffect } from "react";
+
 const API = "http://127.0.0.1:8000";
 
+const LANG_OPTIONS = [
+  { code:"en", label:"🇬🇧 English" },
+  { code:"hi", label:"🇮🇳 Hindi"   },
+  { code:"te", label:"🏳 Telugu"   },
+];
+
 const STATUS_STYLE = {
-  completed:     { bg:"rgba(34,197,94,0.12)",  color:"#4ade80", border:"rgba(34,197,94,0.25)"  },
-  "in-progress": { bg:"rgba(37,99,235,0.12)",  color:"#60a5fa", border:"rgba(37,99,235,0.25)"  },
-  initiated:     { bg:"rgba(245,158,11,0.12)", color:"#fbbf24", border:"rgba(245,158,11,0.25)" },
-  ringing:       { bg:"rgba(245,158,11,0.12)", color:"#fbbf24", border:"rgba(245,158,11,0.25)" },
-  answered:      { bg:"rgba(37,99,235,0.12)",  color:"#60a5fa", border:"rgba(37,99,235,0.25)"  },
-  failed:        { bg:"rgba(239,68,68,0.12)",  color:"#f87171", border:"rgba(239,68,68,0.25)"  },
-  "no-answer":   { bg:"rgba(239,68,68,0.12)",  color:"#f87171", border:"rgba(239,68,68,0.25)"  },
-  busy:          { bg:"rgba(239,68,68,0.12)",  color:"#f87171", border:"rgba(239,68,68,0.25)"  },
+  completed:    { bg:"rgba(34,197,94,0.12)",  color:"#4ade80", border:"rgba(34,197,94,0.25)"  },
+  "in-progress":{ bg:"rgba(37,99,235,0.12)",  color:"#60a5fa", border:"rgba(37,99,235,0.25)"  },
+  initiated:    { bg:"rgba(245,158,11,0.12)", color:"#fbbf24", border:"rgba(245,158,11,0.25)" },
+  ringing:      { bg:"rgba(245,158,11,0.12)", color:"#fbbf24", border:"rgba(245,158,11,0.25)" },
+  answered:     { bg:"rgba(37,99,235,0.12)",  color:"#60a5fa", border:"rgba(37,99,235,0.25)"  },
+  failed:       { bg:"rgba(239,68,68,0.12)",  color:"#f87171", border:"rgba(239,68,68,0.25)"  },
+  "no-answer":  { bg:"rgba(239,68,68,0.12)",  color:"#f87171", border:"rgba(239,68,68,0.25)"  },
+  busy:         { bg:"rgba(239,68,68,0.12)",  color:"#f87171", border:"rgba(239,68,68,0.25)"  },
 };
-const SENT_STYLE = { positive:"#4ade80", neutral:"#94a3b8", negative:"#f87171" };
+const SENT_COLOR = { positive:"#4ade80", neutral:"#94a3b8", negative:"#f87171" };
 const SENT_ICON  = { positive:"😊", neutral:"😐", negative:"😔" };
 
 const CODES = [
@@ -20,7 +27,35 @@ const CODES = [
   {code:"+65",label:"🇸🇬 +65"},{code:"+61",label:"🇦🇺 +61"},
 ];
 
-export default function VoiceCalls({ authToken }) {
+// ── Loan profile panel shown above the call form ──────────────────────────────
+function LoanProfileBanner({ app }) {
+  if (!app) return null;
+  return (
+    <div style={{ background:"rgba(34,197,94,0.07)", border:"1px solid rgba(34,197,94,0.2)",
+      borderRadius:12, padding:"12px 16px", marginBottom:16,
+      display:"flex", flexWrap:"wrap", gap:14, alignItems:"center" }}>
+      <span style={{ fontSize:"0.74rem", fontWeight:700, color:"#4ade80",
+        textTransform:"uppercase", letterSpacing:"0.05em" }}>
+        ✓ Loan profile loaded
+      </span>
+      {app.fullName      && <Chip label="Name"    value={app.fullName} />}
+      {app.preferredLoanType && <Chip label="Loan"  value={app.preferredLoanType} />}
+      {app.preferredAmount   && <Chip label="Amount" value={`₹${Number(app.preferredAmount).toLocaleString("en-IN")}`} />}
+      {app.bank          && <Chip label="Bank"    value={app.bank} />}
+      {app.emi           && <Chip label="EMI"     value={`₹${Number(app.emi).toFixed(0)}/mo`} />}
+      {app.creditScore   && <Chip label="Score"   value={app.creditScore} />}
+    </div>
+  );
+}
+function Chip({ label, value }) {
+  return (
+    <span style={{ fontSize:"0.78rem", color:"#cbd5e1" }}>
+      <span style={{ color:"#64748b" }}>{label}: </span>{value}
+    </span>
+  );
+}
+
+export default function VoiceCalls({ authToken, lastApplication }) {
   const [logs,        setLogs]        = useState([]);
   const [loading,     setLoading]     = useState(true);
   const [calling,     setCalling]     = useState(false);
@@ -28,9 +63,10 @@ export default function VoiceCalls({ authToken }) {
   const [analysing,   setAnalysing]   = useState(null);
   const [callError,   setCallError]   = useState("");
   const [callSuccess, setCallSuccess] = useState("");
-  const [form, setForm] = useState({
-    countryCode:"+91", phone:"", userName:"", loanType:"personal", bank:"", emi:""
-  });
+  const [language,    setLanguage]    = useState("en");
+
+  // Phone form — other loan fields auto-filled from lastApplication
+  const [form, setForm] = useState({ countryCode:"+91", phone:"" });
 
   const headers = {
     "Content-Type":"application/json",
@@ -50,22 +86,30 @@ export default function VoiceCalls({ authToken }) {
   const initiateCall = async () => {
     setCallError(""); setCallSuccess("");
     if (!form.phone.trim()) { setCallError("Phone number is required"); return; }
+
+    const app = lastApplication || {};
     setCalling(true);
     try {
       const res = await fetch(`${API}/calls/initiate`, {
         method:"POST", headers,
         body: JSON.stringify({
-          to_number: `${form.countryCode}${form.phone.trim()}`,
-          user_name: form.userName || "there",
-          loan_type: form.loanType,
-          bank:      form.bank,
-          emi:       parseFloat(form.emi) || 0,
+          to_number:      `${form.countryCode}${form.phone.trim()}`,
+          user_name:      app.fullName      || "there",
+          loan_type:      app.preferredLoanType || "loan",
+          bank:           app.bank          || "",
+          emi:            parseFloat(app.emi) || 0,
+          // Full profile for AI context during the call
+          loan_amount:    parseFloat(app.preferredAmount) || 0,
+          loan_tenure:    parseInt(app.preferredTenure)   || 0,
+          monthly_income: parseFloat(app.monthlyIncome)   || 0,
+          credit_score:   parseInt(app.creditScore)       || 0,
+          language,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Call failed");
-      setCallSuccess(`✅ Call initiated! SID: ${data.callSid}`);
-      setForm(p => ({...p, phone:"", userName:"", bank:"", emi:""}));
+      setCallSuccess(`✅ Call initiated! The AI advisor will speak using your loan details.`);
+      setForm(p => ({...p, phone:""}));
       setTimeout(fetchLogs, 2500);
     } catch(e) {
       setCallError(e.message);
@@ -75,9 +119,9 @@ export default function VoiceCalls({ authToken }) {
   const analyseCall = async (callSid) => {
     setAnalysing(callSid);
     try {
-      const res  = await fetch(`${API}/calls/analytics/${callSid}`, { method:"POST", headers });
+      const res  = await fetch(`${API}/calls/analytics/${callSid}`,{ method:"POST", headers });
       const data = await res.json();
-      setLogs(prev => prev.map(l => l.callSid === callSid
+      setLogs(prev => prev.map(l => l.callSid===callSid
         ? {...l, aiSummary:data.summary, sentiment:data.sentiment} : l));
       if (selected?.callSid === callSid)
         setSelected(p => ({...p, aiSummary:data.summary, sentiment:data.sentiment}));
@@ -85,13 +129,12 @@ export default function VoiceCalls({ authToken }) {
     finally { setAnalysing(null); }
   };
 
-  // Refresh a single call log detail (to pick up latest transcript)
   const refreshSelected = async (callSid) => {
     try {
       const res  = await fetch(`${API}/calls/logs/${callSid}`, { headers });
       const data = await res.json();
       setSelected(data);
-      setLogs(prev => prev.map(l => l.callSid === callSid ? data : l));
+      setLogs(prev => prev.map(l => l.callSid===callSid ? data : l));
     } catch(e) { console.error(e); }
   };
 
@@ -104,8 +147,9 @@ export default function VoiceCalls({ authToken }) {
   const statusBadge = (status) => {
     const s = STATUS_STYLE[status] || STATUS_STYLE.failed;
     return (
-      <span style={{ padding:"3px 10px", borderRadius:999, fontSize:"0.73rem", fontWeight:600,
-        background:s.bg, color:s.color, border:`1px solid ${s.border}`, whiteSpace:"nowrap" }}>
+      <span style={{ padding:"3px 10px", borderRadius:999, fontSize:"0.73rem",
+        fontWeight:600, background:s.bg, color:s.color, border:`1px solid ${s.border}`,
+        whiteSpace:"nowrap" }}>
         {status || "unknown"}
       </span>
     );
@@ -120,7 +164,10 @@ export default function VoiceCalls({ authToken }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
 
-      {/* ── Initiate Call Panel ── */}
+      {/* ── Loan profile banner ── */}
+      <LoanProfileBanner app={lastApplication} />
+
+      {/* ── Initiate call ── */}
       <div style={{ background:"rgba(37,99,235,0.06)", border:"1px solid rgba(37,99,235,0.2)",
         borderRadius:14, padding:"20px 22px" }}>
         <h3 style={{ color:"#fff", fontSize:"0.95rem", fontWeight:700, marginBottom:4,
@@ -128,67 +175,55 @@ export default function VoiceCalls({ authToken }) {
           <span>📞</span> Initiate Outbound Call
         </h3>
         <p style={{ color:"#64748b", fontSize:"0.8rem", marginBottom:18 }}>
-          Place an AI-powered loan advisory call via Twilio
+          The AI assistant will use the loan application details automatically.
+          {!lastApplication && (
+            <span style={{ color:"#f59e0b" }}> Submit a Loan Form first to load loan context.</span>
+          )}
         </p>
 
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))", gap:12 }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))", gap:12 }}>
+          {/* Phone */}
           <div style={{ gridColumn:"span 2", display:"flex", flexDirection:"column", gap:5 }}>
             <label style={lblSx}>Phone Number *</label>
             <div style={{ display:"flex", gap:8 }}>
-              <select value={form.countryCode} onChange={e=>setForm(p=>({...p,countryCode:e.target.value}))}
-                style={{ ...inputSx, width:100, padding:"0 8px", flexShrink:0 }}>
+              <select value={form.countryCode}
+                onChange={e=>setForm(p=>({...p,countryCode:e.target.value}))}
+                style={{ ...inputSx, width:106, padding:"0 8px", flexShrink:0 }}>
                 {CODES.map(c=><option key={c.code} value={c.code}>{c.label}</option>)}
               </select>
               <input style={inputSx} placeholder="9876543210"
-                value={form.phone} onChange={e=>setForm(p=>({...p,phone:e.target.value}))}
+                value={form.phone}
+                onChange={e=>setForm(p=>({...p,phone:e.target.value}))}
                 onKeyDown={e=>e.key==="Enter" && initiateCall()}/>
             </div>
           </div>
 
+          {/* Language */}
           <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
-            <label style={lblSx}>Customer Name</label>
-            <input style={inputSx} placeholder="John" value={form.userName}
-              onChange={e=>setForm(p=>({...p,userName:e.target.value}))}/>
-          </div>
-
-          <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
-            <label style={lblSx}>Loan Type</label>
-            <select style={inputSx} value={form.loanType}
-              onChange={e=>setForm(p=>({...p,loanType:e.target.value}))}>
-              {["personal","home","car","business","education"].map(t=>(
-                <option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>
+            <label style={lblSx}>Call Language</label>
+            <select style={inputSx} value={language} onChange={e=>setLanguage(e.target.value)}>
+              {LANG_OPTIONS.map(l=>(
+                <option key={l.code} value={l.code}>{l.label}</option>
               ))}
             </select>
-          </div>
-
-          <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
-            <label style={lblSx}>Bank (optional)</label>
-            <input style={inputSx} placeholder="HDFC" value={form.bank}
-              onChange={e=>setForm(p=>({...p,bank:e.target.value}))}/>
-          </div>
-
-          <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
-            <label style={lblSx}>EMI ₹ (optional)</label>
-            <input style={inputSx} type="number" placeholder="8200" value={form.emi}
-              onChange={e=>setForm(p=>({...p,emi:e.target.value}))}/>
           </div>
         </div>
 
         {callError   && <p style={{ marginTop:12, fontSize:"0.8rem", color:"#fca5a5" }}>⚠️ {callError}</p>}
         {callSuccess && <p style={{ marginTop:12, fontSize:"0.8rem", color:"#4ade80" }}>{callSuccess}</p>}
 
-        <button disabled={calling} onClick={initiateCall}
-          style={{ marginTop:16, height:44, padding:"0 24px", borderRadius:10, border:"none",
-            background: calling ? "rgba(255,255,255,0.05)" : "linear-gradient(135deg,#2563eb,#1d4ed8)",
-            color: calling ? "#64748b" : "#fff",
-            fontWeight:700, fontSize:"0.88rem", cursor: calling ? "not-allowed" : "pointer",
-            boxShadow: calling ? "none" : "0 4px 16px rgba(37,99,235,0.35)",
-            display:"flex", alignItems:"center", gap:8, transition:"all 0.2s" }}>
-          {calling ? <><Spin/> Initiating…</> : <><span>📲</span> Place Call</>}
+        <button disabled={calling} onClick={initiateCall} style={{
+          marginTop:16, height:44, padding:"0 24px", borderRadius:10, border:"none",
+          background: calling ? "rgba(255,255,255,0.05)" : "linear-gradient(135deg,#2563eb,#1d4ed8)",
+          color: calling ? "#64748b" : "#fff",
+          fontWeight:700, fontSize:"0.88rem", cursor: calling ? "not-allowed" : "pointer",
+          boxShadow: calling ? "none" : "0 4px 16px rgba(37,99,235,0.35)",
+          display:"flex", alignItems:"center", gap:8, transition:"all 0.2s" }}>
+          {calling ? <><Spin/> Calling…</> : <><span>📲</span> Place Call</>}
         </button>
       </div>
 
-      {/* ── Call Logs Table ── */}
+      {/* ── Call logs table ── */}
       <div>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
           <h2 className="section-title" style={{ marginBottom:0 }}>Call History</h2>
@@ -204,8 +239,8 @@ export default function VoiceCalls({ authToken }) {
             <table>
               <thead>
                 <tr>
-                  <th>To Number</th><th>Status</th><th>Duration</th>
-                  <th>Transcript</th><th>Sentiment</th><th>Date</th><th>Actions</th>
+                  <th>To</th><th>Loan</th><th>Status</th>
+                  <th>Duration</th><th>Sentiment</th><th>Date</th><th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -216,23 +251,17 @@ export default function VoiceCalls({ authToken }) {
                 ) : logs.map(l => (
                   <tr key={l.callSid}>
                     <td style={{ fontFamily:"var(--mono)", fontSize:"0.82rem" }}>{l.toNumber}</td>
+                    <td style={{ color:"#94a3b8", fontSize:"0.82rem", textTransform:"capitalize" }}>
+                      {l.loanType || "—"}
+                    </td>
                     <td>{statusBadge(l.status)}</td>
                     <td style={{ color:"#94a3b8" }}>{fmt(l.durationSec)}</td>
                     <td>
-                      {l.transcript
-                        ? <span style={{ fontSize:"0.75rem", color:"#60a5fa" }}>
-                            ✓ {l.transcript.split("\n").length} lines
-                          </span>
-                        : <span style={{ fontSize:"0.75rem", color:"#475569" }}>—</span>
-                      }
-                    </td>
-                    <td>
                       {l.sentiment
-                        ? <span style={{ color:SENT_STYLE[l.sentiment]||"#94a3b8", fontSize:"0.82rem" }}>
+                        ? <span style={{ color:SENT_COLOR[l.sentiment]||"#94a3b8", fontSize:"0.82rem" }}>
                             {SENT_ICON[l.sentiment]} {l.sentiment}
                           </span>
-                        : <span style={{ color:"#475569" }}>—</span>
-                      }
+                        : <span style={{ color:"#475569" }}>—</span>}
                     </td>
                     <td style={{ color:"#64748b", fontSize:"0.78rem", whiteSpace:"nowrap" }}>
                       {l.createdAt ? new Date(l.createdAt).toLocaleString() : "—"}
@@ -254,18 +283,16 @@ export default function VoiceCalls({ authToken }) {
         )}
       </div>
 
-      {/* ── Detail Modal ── */}
+      {/* ── Detail modal ── */}
       {selected && (
         <div style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.75)",
           backdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}
           onClick={() => setSelected(null)}>
           <div style={{ background:"#0d1626", border:"1px solid rgba(255,255,255,0.1)",
             borderRadius:18, padding:"26px 24px", maxWidth:560, width:"100%",
-            maxHeight:"88vh", overflowY:"auto",
-            boxShadow:"0 24px 60px rgba(0,0,0,0.7)" }}
+            maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 60px rgba(0,0,0,0.7)" }}
             onClick={e => e.stopPropagation()}>
 
-            {/* Header */}
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
               <h3 style={{ color:"#fff", fontWeight:700, fontSize:"1rem" }}>📞 Call Detail</h3>
               <div style={{ display:"flex", gap:8 }}>
@@ -273,43 +300,39 @@ export default function VoiceCalls({ authToken }) {
                   style={{ height:28, padding:"0 10px", borderRadius:6,
                     border:"1px solid rgba(255,255,255,0.1)",
                     background:"rgba(255,255,255,0.04)", color:"#94a3b8",
-                    fontSize:"0.75rem", cursor:"pointer" }}>
-                  ↻ Refresh
-                </button>
+                    fontSize:"0.75rem", cursor:"pointer" }}>↻ Refresh</button>
                 <button onClick={() => setSelected(null)}
                   style={{ width:28, height:28, borderRadius:6, border:"none",
-                    background:"rgba(255,255,255,0.06)", color:"#94a3b8", cursor:"pointer" }}>
-                  ✕
-                </button>
+                    background:"rgba(255,255,255,0.06)", color:"#94a3b8", cursor:"pointer" }}>✕</button>
               </div>
             </div>
 
-            {/* Metadata rows */}
+            {/* Metadata */}
             {[
               ["Call SID",   selected.callSid,   true  ],
               ["To",         selected.toNumber         ],
-              ["From",       selected.fromNumber        ],
-              ["Status",     selected.status            ],
-              ["Duration",   fmt(selected.durationSec)  ],
+              ["Status",     selected.status           ],
+              ["Duration",   fmt(selected.durationSec) ],
+              ["Loan Type",  selected.loanType         ],
+              ["Bank",       selected.recommendedBank  ],
+              ["EMI",        selected.recommendedEmi ? `₹${Number(selected.recommendedEmi).toFixed(0)}/mo` : null],
               ["Date",       selected.createdAt ? new Date(selected.createdAt).toLocaleString() : "—"],
-            ].map(([k,v,mono]) => (
+            ].map(([k,v,mono]) => v ? (
               <div key={k} style={{ display:"flex", justifyContent:"space-between",
-                padding:"10px 0", borderBottom:"1px solid rgba(255,255,255,0.05)" }}>
+                padding:"9px 0", borderBottom:"1px solid rgba(255,255,255,0.05)" }}>
                 <span style={{ fontSize:"0.76rem", color:"#64748b", fontWeight:600,
                   textTransform:"uppercase", letterSpacing:"0.04em" }}>{k}</span>
-                <span style={{ fontSize:"0.83rem", color:"#e2e8f0",
-                  fontFamily: mono ? "var(--mono)" : "inherit",
-                  fontSize: mono ? "0.75rem" : "0.83rem" }}>{v || "—"}</span>
+                <span style={{ fontSize: mono?"0.75rem":"0.83rem", color:"#e2e8f0",
+                  fontFamily: mono?"var(--mono)":"inherit" }}>{v}</span>
               </div>
-            ))}
+            ) : null)}
 
-            {/* Sentiment */}
             {selected.sentiment && (
               <div style={{ display:"flex", justifyContent:"space-between",
-                padding:"10px 0", borderBottom:"1px solid rgba(255,255,255,0.05)" }}>
+                padding:"9px 0", borderBottom:"1px solid rgba(255,255,255,0.05)" }}>
                 <span style={{ fontSize:"0.76rem", color:"#64748b", fontWeight:600,
                   textTransform:"uppercase", letterSpacing:"0.04em" }}>Sentiment</span>
-                <span style={{ color:SENT_STYLE[selected.sentiment]||"#94a3b8",
+                <span style={{ color:SENT_COLOR[selected.sentiment]||"#94a3b8",
                   fontSize:"0.83rem", fontWeight:600 }}>
                   {SENT_ICON[selected.sentiment]} {selected.sentiment}
                 </span>
@@ -324,39 +347,40 @@ export default function VoiceCalls({ authToken }) {
               </div>
               {selected.transcript ? (
                 <div style={{ background:"rgba(255,255,255,0.03)",
-                  border:"1px solid rgba(255,255,255,0.07)",
-                  borderRadius:10, padding:"12px 14px",
-                  maxHeight:200, overflowY:"auto" }}>
-                  {selected.transcript.split("\n").map((line, i) => {
+                  border:"1px solid rgba(255,255,255,0.07)", borderRadius:10,
+                  padding:"12px 14px", maxHeight:220, overflowY:"auto" }}>
+                  {selected.transcript.split("\n").filter(Boolean).map((line, i) => {
                     const isUser = line.startsWith("User:");
                     const isAI   = line.startsWith("AI:");
                     return (
-                      <div key={i} style={{ marginBottom:8,
-                        display:"flex", gap:8, alignItems:"flex-start" }}>
-                        <span style={{ fontSize:"0.7rem", fontWeight:700, flexShrink:0,
-                          color: isUser ? "#60a5fa" : isAI ? "#4ade80" : "#64748b",
-                          minWidth:30 }}>
-                          {isUser ? "👤" : isAI ? "🤖" : ""}
+                      <div key={i} style={{ marginBottom:10, display:"flex", gap:9, alignItems:"flex-start" }}>
+                        <span style={{ fontSize:"0.75rem", fontWeight:700, flexShrink:0,
+                          color: isUser?"#60a5fa":isAI?"#4ade80":"#64748b", minWidth:28 }}>
+                          {isUser?"👤":isAI?"🤖":""}
                         </span>
-                        <span style={{ fontSize:"0.83rem", color:"#cbd5e1", lineHeight:1.5 }}>
-                          {line.replace(/^(User:|AI:)\s*/,"").trim()}
-                        </span>
+                        <div style={{ flex:1 }}>
+                          <span style={{ fontSize:"0.7rem", fontWeight:700,
+                            color: isUser?"#60a5fa":isAI?"#4ade80":"#64748b", marginRight:6 }}>
+                            {isUser?"You:":isAI?"AI:":""}
+                          </span>
+                          <span style={{ fontSize:"0.83rem", color:"#cbd5e1", lineHeight:1.5 }}>
+                            {line.replace(/^(User:|AI:)\s*/,"").trim()}
+                          </span>
+                        </div>
                       </div>
                     );
                   })}
                 </div>
               ) : (
                 <div style={{ background:"rgba(255,255,255,0.03)",
-                  border:"1px solid rgba(255,255,255,0.07)",
-                  borderRadius:10, padding:"14px 16px",
-                  color:"#475569", fontSize:"0.82rem", textAlign:"center" }}>
-                  No transcript yet. The transcript is recorded during the call.
-                  Refresh after the call completes.
+                  border:"1px solid rgba(255,255,255,0.07)", borderRadius:10,
+                  padding:"14px 16px", color:"#475569", fontSize:"0.82rem", textAlign:"center" }}>
+                  No transcript yet. Refresh after the call completes.
                 </div>
               )}
             </div>
 
-            {/* AI Summary */}
+            {/* AI summary */}
             {selected.aiSummary && (
               <div style={{ marginTop:14, background:"rgba(37,99,235,0.07)",
                 border:"1px solid rgba(37,99,235,0.2)", borderRadius:10, padding:"14px 16px" }}>
@@ -370,28 +394,25 @@ export default function VoiceCalls({ authToken }) {
               </div>
             )}
 
-            {/* Recording */}
             {selected.recordingUrl && (
               <div style={{ marginTop:14 }}>
                 <a href={selected.recordingUrl} target="_blank" rel="noreferrer"
-                  style={{ color:"#60a5fa", fontSize:"0.82rem", display:"flex", alignItems:"center", gap:6 }}>
+                  style={{ color:"#60a5fa", fontSize:"0.82rem" }}>
                   🎙 Listen to recording
                 </a>
               </div>
             )}
 
-            {/* Analyse button */}
-            <button disabled={analysing === selected.callSid}
+            <button disabled={analysing===selected.callSid}
               onClick={() => analyseCall(selected.callSid)}
               style={{ marginTop:16, height:42, padding:"0 20px", borderRadius:9, border:"none",
                 background:"linear-gradient(135deg,#6366f1,#4f46e5)", color:"#fff",
                 fontWeight:700, fontSize:"0.84rem", cursor:"pointer",
                 display:"flex", alignItems:"center", gap:8,
                 opacity: analysing===selected.callSid ? 0.6 : 1 }}>
-              {analysing === selected.callSid
+              {analysing===selected.callSid
                 ? <><Spin/> Analysing…</>
-                : <>{selected.aiSummary ? "↻ Re-analyse" : "✦ Generate AI Analysis"}</>
-              }
+                : <>{selected.aiSummary ? "↻ Re-analyse" : "✦ Generate AI Analysis"}</>}
             </button>
           </div>
         </div>
