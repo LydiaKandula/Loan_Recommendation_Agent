@@ -146,7 +146,7 @@ export default function App() {
               <ChatUI
                 lastApplication={lastApp}
                 authToken={auth?.token}
-                isActive={page === "Chat Assistant"}
+                isActive={page === "Chat Assistant"}   
               />
             </div>
           </div>
@@ -154,7 +154,7 @@ export default function App() {
           {/* VOICE CALLS */}
           <div style={{ display: page==="Voice Calls" ? "block" : "none" }}>
             <div className="panel">
-              <VoiceCalls authToken={auth?.token} />
+              <VoiceCalls authToken={auth?.token} lastApplication={lastApp} />
             </div>
           </div>
 
