@@ -55,7 +55,7 @@ function Chip({ label, value }) {
   );
 }
 
-export default function VoiceCalls({ authToken, lastApplication }) {
+export default function VoiceCalls({ authToken, lastApplication, isActive }) {
   const [logs,        setLogs]        = useState([]);
   const [loading,     setLoading]     = useState(true);
   const [calling,     setCalling]     = useState(false);
@@ -68,19 +68,27 @@ export default function VoiceCalls({ authToken, lastApplication }) {
   // Phone form — other loan fields auto-filled from lastApplication
   const [form, setForm] = useState({ countryCode:"+91", phone:"" });
 
-  const headers = {
+  // Build headers fresh on every call so token is never stale
+  const getHeaders = () => ({
     "Content-Type":"application/json",
     ...(authToken ? { Authorization:`Bearer ${authToken}` } : {}),
-  };
+  });
+  const headers = getHeaders();
 
   const fetchLogs = () => {
     setLoading(true);
-    fetch(`${API}/calls/logs`, { headers })
+    fetch(`${API}/calls/logs`, { headers: getHeaders() })
       .then(r => r.ok ? r.json() : [])
       .then(setLogs).catch(console.error)
       .finally(() => setLoading(false));
   };
 
+  // Refetch every time this tab becomes active so recent calls always show
+  useEffect(() => {
+    if (isActive) fetchLogs();
+  }, [isActive]); // eslint-disable-line
+
+  // Also fetch on first mount (isActive may already be true)
   useEffect(() => { fetchLogs(); }, []); // eslint-disable-line
 
   const initiateCall = async () => {
@@ -91,7 +99,7 @@ export default function VoiceCalls({ authToken, lastApplication }) {
     setCalling(true);
     try {
       const res = await fetch(`${API}/calls/initiate`, {
-        method:"POST", headers,
+        method:"POST", headers: getHeaders(),
         body: JSON.stringify({
           to_number:      `${form.countryCode}${form.phone.trim()}`,
           user_name:      app.fullName      || "there",
@@ -119,7 +127,7 @@ export default function VoiceCalls({ authToken, lastApplication }) {
   const analyseCall = async (callSid) => {
     setAnalysing(callSid);
     try {
-      const res  = await fetch(`${API}/calls/analytics/${callSid}`,{ method:"POST", headers });
+      const res  = await fetch(`${API}/calls/analytics/${callSid}`,{ method:"POST", headers: getHeaders() });
       const data = await res.json();
       setLogs(prev => prev.map(l => l.callSid===callSid
         ? {...l, aiSummary:data.summary, sentiment:data.sentiment} : l));
@@ -131,7 +139,7 @@ export default function VoiceCalls({ authToken, lastApplication }) {
 
   const refreshSelected = async (callSid) => {
     try {
-      const res  = await fetch(`${API}/calls/logs/${callSid}`, { headers });
+      const res  = await fetch(`${API}/calls/logs/${callSid}`, { headers: getHeaders() });
       const data = await res.json();
       setSelected(data);
       setLogs(prev => prev.map(l => l.callSid===callSid ? data : l));
