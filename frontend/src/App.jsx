@@ -7,6 +7,7 @@ import InputForm     from "./components/InputForm";
 import ChatUI        from "./components/ChatUI";
 import Logs          from "./components/Logs";
 import VoiceCalls    from "./components/VoiceCalls";
+import BrowserCall   from "./components/BrowserCall";
 import SuccessModal  from "./components/SuccessModal";
 import "./App.css";
 
@@ -17,6 +18,7 @@ const NAV = [
   { id:"Loan Form",      icon:"✦",  label:"Loan Form" },
   { id:"Chat Assistant", icon:"◈",  label:"Chat Assistant" },
   { id:"Voice Calls",    icon:"✆",  label:"Voice Calls" },
+  { id:"Browser Call",   icon:"🎙", label:"Browser Call" },
   { id:"Logs",           icon:"≡",  label:"Logs" },
 ];
 
@@ -146,7 +148,7 @@ export default function App() {
               <ChatUI
                 lastApplication={lastApp}
                 authToken={auth?.token}
-                isActive={page === "Chat Assistant"}   
+                isActive={page === "Chat Assistant"}  //{/* ← KEY FIX */}
               />
             </div>
           </div>
