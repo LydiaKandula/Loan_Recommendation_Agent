@@ -11,6 +11,25 @@ const CHIPS = {
   te: ["నా EMI ఎంత?","నేను అర్హుడినా?","క్రెడిట్ స్కోర్ పెంచడం ఎలా?","లోన్ ఆప్షన్లు చూపండి"],
 };
 
+// Preprocess text for browser TTS — same logic as backend _speak_text()
+function speakPreprocess(text) {
+  return (text || "")
+    .replace(/[*#`]/g, "")
+    // EMI → spaced letters (browser TTS speaks them clearly)
+    .replace(/\bEMIs?\b/g, "E M I")
+    // Hyphenated number-word: "12-month" → "12 month"
+    .replace(/(\d)-([a-zA-Z])/g, "$1 $2")
+    // Hyphenated word-number: "month-12" → "month 12"
+    .replace(/([a-zA-Z])-(\d)/g, "$1 $2")
+    // Currency
+    .replace(/₹/g, " rupees ")
+    .replace(/Rs\./g, " rupees ")
+    // Percent
+    .replace(/%/g, " percent")
+    // Collapse spaces
+    .replace(/\s+/g, " ").trim();
+}
+
 export default function ChatUI({ lastApplication, authToken, isActive }) {
   const [messages,     setMessages]     = useState([]);
   const [input,        setInput]        = useState("");
@@ -69,8 +88,8 @@ export default function ChatUI({ lastApplication, authToken, isActive }) {
       } catch (e) { console.warn(e); setIsSpeaking(false); }
     } else {
       try {
-        const u = new SpeechSynthesisUtterance(text);
-        u.lang = LANG_CFG[langRef.current]?.stt || "en-IN"; u.rate = 0.95;
+        const u = new SpeechSynthesisUtterance(speakPreprocess(text));
+        u.lang = LANG_CFG[langRef.current]?.stt || "en-IN"; u.rate = 0.9;
         u.onstart = () => setIsSpeaking(true);
         u.onend   = () => setIsSpeaking(false);
         u.onerror = () => setIsSpeaking(false);
