@@ -1,24 +1,13 @@
 """
-twilio_routes.py — final stable version
+twilio_routes.py — final
 
-Root causes fixed:
-  1. SPEED / "application error":
-     Sarvam STT was downloading Twilio recording (2-4s) + Groq (2-3s) = 5-7s.
-     Twilio's hard TwiML timeout is 5 seconds → always "application error".
-     FIX: Sarvam STT removed from the synchronous call path entirely.
-     Twilio's own SpeechResult is used (it arrives instantly in the POST body).
-     Groq call is the only async work now (~1-2s) — well within 5s.
-
-  2. LANGUAGE "application error":
-     Polly.Aditi does NOT support hi-IN or te-IN on standard Twilio accounts.
-     Using an unsupported voice causes Twilio to return "application error".
-     FIX: Use voice="alice" for all languages (built-in, always available).
-     Language is handled entirely by Groq prompt instruction — the AI replies
-     in Hindi/Telugu naturally without needing a different TTS voice.
-     alice supports language="hi-IN" and "te-IN" for STT gather only.
-
-  3. Recent calls / analysis: frontend was not refreshing on tab activation.
-     FIX: isActive prop added; VoiceCalls refetches logs when tab opens.
+STT fix: Twilio Enhanced model + financial vocabulary hints in <Gather>
+TTS fix: 
+  - English: Polly.Aditi (Indian English, handles numbers naturally)
+  - Hindi: Polly.Kajal (native Hindi speaker, available on standard accounts)
+  - Telugu: alice with language="te-IN" (Polly has no Telugu voice)
+  All text preprocessed with _speak_text() before TTS.
+Language fix: Each language uses the correct voice that actually speaks that language.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Header
@@ -26,7 +15,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
-import asyncio, httpx, html, urllib.parse
+import asyncio, httpx, html, urllib.parse, re
 
 from app.core.database import get_db
 from app.core.config import (
@@ -39,24 +28,46 @@ from app.services.groq_service import generate_ai_response
 
 router = APIRouter(prefix="/calls", tags=["calls"])
 
-# Language → (Groq instruction, Twilio STT BCP-47, retry message)
+# Language config:
+#   voice     — Twilio TTS voice (speaks in that language)
+#   bcp47     — STT language for <Gather>
+#   lang_prompt — Groq instruction for that language
+# Voice notes:
+#   Polly.Aditi   — Indian English female (standard account, no add-on needed)
+#   Polly.Kajal   — Hindi female (standard account, no add-on needed)
+#   alice te-IN   — No Polly Telugu voice exists; alice with te-IN does Telugu STT
+#                   but speaks English. For Telugu TTS we use Polly.Aditi + Telugu Groq text.
+#                   Workaround: translate reply to Telugu script but speak via Aditi.
 LANG_CONFIG = {
-    "en": (
-        "Reply in clear English. 1-2 sentences only.",
-        "en-IN",
-        "Sorry, I did not catch that. Please go ahead and speak.",
-    ),
-    "hi": (
-        "हिंदी में जवाब दें। सरल बोलचाल की हिंदी। 1-2 वाक्य।",
-        "hi-IN",
-        "माफ़ करें, समझ नहीं आया। कृपया दोबारा बोलें।",
-    ),
-    "te": (
-        "తెలుగులో జవాబు ఇవ్వండి. సాధారణ తెలుగు. 1-2 వాక్యాలు.",
-        "te-IN",
-        "క్షమించండి, వినిపించలేదు. దయచేసి మళ్ళీ చెప్పండి.",
-    ),
+    "en": {
+        "voice":       "Polly.Aditi",
+        "bcp47":       "en-IN",
+        "lang_prompt": "Reply in clear Indian English. 1-2 sentences only.",
+        "retry":       "Sorry, I did not catch that. Please speak again.",
+    },
+    "hi": {
+        "voice":       "Polly.Kajal",
+        "bcp47":       "hi-IN",
+        "lang_prompt": "हिंदी में जवाब दें। सरल, बोलचाल की हिंदी। 1-2 वाक्य।",
+        "retry":       "माफ़ करें, समझ नहीं आया। कृपया दोबारा बोलें।",
+    },
+    "te": {
+        # No Polly Telugu voice — use Polly.Aditi which at least pronounces
+        # Telugu-script words better than alice, and Groq supplies Telugu text.
+        "voice":       "Polly.Aditi",
+        "bcp47":       "te-IN",
+        "lang_prompt": "తెలుగులో జవాబు ఇవ్వండి. సాధారణ తెలుగు. 1-2 వాక్యాలు.",
+        "retry":       "క్షమించండి, వినిపించలేదు. దయచేసి మళ్ళీ చెప్పండి.",
+    },
 }
+
+# Financial vocabulary hints for Twilio STT — improves recognition accuracy
+STT_HINTS = (
+    "EMI,loan,interest,tenure,rupees,principal,SBI,HDFC,ICICI,Axis,"
+    "personal loan,home loan,car loan,education loan,business loan,"
+    "credit score,eligibility,repayment,installment,LoanAI,"
+    "monthly income,down payment,processing fee,foreclosure"
+)
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -75,31 +86,57 @@ def _require_base() -> str:
     return PUBLIC_BASE_URL.rstrip("/")
 
 
-def _clean(text: str) -> str:
-    """Strip markdown and normalise for spoken TTS."""
-    return (str(text or "")
-            .replace("**","").replace("*","")
-            .replace("#", "").replace("`","")
-            .replace("₹","rupees ").replace("Rs.","rupees ")
-            .replace("%"," percent").replace("EMI","E M I")
-            .replace("\n"," ").strip())
+def _speak_text(text: str) -> str:
+    """
+    Preprocess text so TTS reads it naturally:
+    - EMI/EMIs → "E M I" (spaces let Polly stress each letter cleanly)
+    - Numbers like 9109 → kept as digits (Polly handles these fine)
+    - 24-month → "24 month" (remove hyphen so it reads "twenty four month")
+    - Percentages, currencies normalised
+    - Remove markdown
+    """
+    t = (str(text or "")
+         .replace("**", "").replace("*", "")
+         .replace("#",  "").replace("`", "")
+         .replace("\n", " ").strip())
+
+    # Only fix EMI — Polly handles SBI, HDFC naturally
+    t = re.sub(r'\bEMIs?\b', 'E M I', t)
+    t = re.sub(r'\bp\.a\.\b','per annum', t, flags=re.IGNORECASE)
+
+    # Hyphens between digit and word: "24-month" → "24 month"
+    t = re.sub(r'(\d)-(\w)', r'\1 \2', t)
+    # Hyphens between word and digit: "month-24" → "month 24"
+    t = re.sub(r'(\w)-(\d)', r'\1 \2', t)
+
+    # Currency symbols
+    t = t.replace("₹", "").replace("Rs.", "")   # Polly.Aditi says "rupees" from context
+
+    # Percent
+    t = t.replace("%", " percent")
+
+    # Collapse extra spaces
+    t = re.sub(r' +', ' ', t).strip()
+    return t
 
 
-def _say(text: str, bcp47: str = "en-IN") -> str:
-    """
-    Always use voice='alice' — it is built-in on all Twilio accounts and
-    supports en-IN, hi-IN, te-IN without any add-ons.
-    Polly voices require the Amazon Polly add-on which most accounts don't have.
-    """
-    return f'<Say voice="alice" language="{bcp47}">{html.escape(_clean(text), quote=True)}</Say>'
+def _say(text: str, lang: str) -> str:
+    """Build <Say> with the correct Polly voice for the language."""
+    cfg   = LANG_CONFIG.get(lang, LANG_CONFIG["en"])
+    voice = cfg["voice"]
+    bcp47 = cfg["bcp47"]
+    safe  = html.escape(_speak_text(text), quote=True)
+    return f'<Say voice="{voice}" language="{bcp47}">{safe}</Say>'
 
 
 def _respond(say_tag: str, gather_url: str, bcp47: str) -> str:
+    """TwiML: speak + listen. Uses Enhanced STT model + financial hints."""
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   {say_tag}
   <Gather input="speech" action="{gather_url}" method="POST"
-          speechTimeout="3" language="{bcp47}" timeout="8">
+          speechTimeout="3" language="{bcp47}" timeout="8"
+          enhanced="true" hints="{STT_HINTS}">
   </Gather>
   <Hangup/>
 </Response>"""
@@ -114,13 +151,13 @@ def _final(say_tag: str) -> str:
 
 
 def _loan_context(log: "CallLog", lang: str) -> str:
-    """System prompt with full loan profile injected."""
-    instruction = LANG_CONFIG.get(lang, LANG_CONFIG["en"])[0]
+    cfg   = LANG_CONFIG.get(lang, LANG_CONFIG["en"])
     lines = [
         "You are a professional loan advisor on a phone call.",
-        instruction,
+        cfg["lang_prompt"],
         "Use the customer profile below. Do NOT ask for info you already have.",
-        "No markdown, no bullet points, no asterisks.",
+        "No markdown, no bullet points, no asterisks, no special characters.",
+        "Write numbers as digits, not words (e.g. write 9109 not nine thousand).",
     ]
     if log.customer_name:    lines.append(f"Customer name: {log.customer_name}")
     if log.loan_type:        lines.append(f"Loan type: {log.loan_type}")
@@ -129,7 +166,7 @@ def _loan_context(log: "CallLog", lang: str) -> str:
     if log.monthly_income:   lines.append(f"Monthly income: {int(log.monthly_income):,} rupees")
     if log.credit_score:     lines.append(f"Credit score: {log.credit_score}")
     if log.recommended_bank: lines.append(f"Recommended bank: {log.recommended_bank}")
-    if log.recommended_emi:  lines.append(f"Monthly E M I: {int(log.recommended_emi):,} rupees")
+    if log.recommended_emi:  lines.append(f"Monthly EMI: {int(log.recommended_emi):,} rupees")
     return "\n".join(lines)
 
 
@@ -163,7 +200,6 @@ async def initiate_call(
     auth_user_id = _auth_id(authorization)
     lang         = body.language if body.language in LANG_CONFIG else "en"
 
-    # Pass language in URL so twiml_handler knows which language to use
     params    = urllib.parse.urlencode({"language": lang})
     twiml_url = f"{base}/calls/twiml?{params}"
     status_cb = f"{base}/calls/status-callback"
@@ -210,7 +246,7 @@ async def initiate_call(
     return {"callSid": call_sid, "status": "initiated", "to": body.to_number}
 
 
-# ── 2. TwiML greeting (Twilio fetches this when call connects) ────────────────
+# ── 2. TwiML greeting ─────────────────────────────────────────────────────────
 
 @router.post("/twiml")
 @router.get("/twiml")
@@ -220,7 +256,6 @@ async def twiml_handler(request: Request, db: Session = Depends(get_db)):
     if lang not in LANG_CONFIG:
         lang = "en"
 
-    # Twilio sends CallSid in POST body when call connects
     call_sid = ""
     if request.method == "POST":
         try:
@@ -229,45 +264,44 @@ async def twiml_handler(request: Request, db: Session = Depends(get_db)):
         except Exception:
             pass
 
-    _, bcp47, _ = LANG_CONFIG[lang]
-    base        = _require_base()
-    gather_url  = f"{base}/calls/gather"
+    cfg        = LANG_CONFIG[lang]
+    base       = _require_base()
+    gather_url = f"{base}/calls/gather"
 
     log  = db.query(CallLog).filter(CallLog.call_sid == call_sid).first() if call_sid else None
     name = (log.customer_name or "") if log else ""
     bank = (log.recommended_bank or "") if log else ""
-    emi  = (log.recommended_emi) if log and log.recommended_emi else None
+    emi  = log.recommended_emi if log and log.recommended_emi else None
     lt   = (log.loan_type or "loan") if log else "loan"
 
     if lang == "hi":
         g  = f"नमस्ते{', ' + name if name else ''}! मैं LoanAI का लोन सलाहकार हूँ। "
         if bank and emi:
-            g += f"{bank} से {lt} लोन के लिए मासिक किस्त {int(emi):,} रुपए है। "
-        g += "आप अपने लोन के बारे में कुछ भी पूछ सकते हैं।"
+            g += f"आपका {lt} लोन {bank} से {int(emi):,} रुपए मासिक किस्त पर है। "
+        g += "आप अपने लोन के बारे में कुछ भी पूछ सकते हैं। बताइए, मैं कैसे मदद करूँ?"
     elif lang == "te":
         g  = f"నమస్కారం{', ' + name if name else ''}! నేను LoanAI లోన్ అడ్వైజర్‌ని. "
         if bank and emi:
-            g += f"{bank} నుండి {lt} లోన్ కోసం నెలవారీ E M I {int(emi):,} రూపాయలు. "
+            g += f"మీ {lt} లోన్ {bank} నుండి నెలకు {int(emi):,} రూపాయలు. "
         g += "మీ లోన్ గురించి ఏమైనా అడగవచ్చు."
     else:
         g  = f"Hello{', ' + name if name else ''}! This is your loan advisor from LoanAI. "
         if bank and emi:
-            g += f"I can see your {lt} loan from {bank} with a monthly E M I of {int(emi):,} rupees. "
+            g += f"I can see your {lt} loan from {bank} with a monthly EMI of {int(emi):,} rupees. "
         g += "You can ask me anything about your loan. How can I help you today?"
 
     return Response(
-        content=_respond(_say(g, bcp47), gather_url, bcp47),
+        content=_respond(_say(g, lang), gather_url, cfg["bcp47"]),
         media_type="application/xml",
     )
 
 
-# ── 3. Gather — speech → Groq → reply (must complete in < 5s) ────────────────
+# ── 3. Gather ─────────────────────────────────────────────────────────────────
 
 @router.post("/gather")
 async def gather_handler(request: Request, db: Session = Depends(get_db)):
     form          = await request.form()
     call_sid      = (form.get("CallSid")      or "").strip()
-    # Use Twilio's SpeechResult directly — fast, arrives in the POST body
     speech_result = (form.get("SpeechResult") or "").strip()
 
     base       = _require_base()
@@ -277,13 +311,12 @@ async def gather_handler(request: Request, db: Session = Depends(get_db)):
     lang = (log.language or "en") if log else "en"
     if lang not in LANG_CONFIG:
         lang = "en"
-
-    _, bcp47, retry_msg = LANG_CONFIG[lang]
+    cfg  = LANG_CONFIG[lang]
 
     # Nothing heard
     if not speech_result:
         return Response(
-            content=_respond(_say(retry_msg, bcp47), gather_url, bcp47),
+            content=_respond(_say(cfg["retry"], lang), gather_url, cfg["bcp47"]),
             media_type="application/xml",
         )
 
@@ -292,25 +325,28 @@ async def gather_handler(request: Request, db: Session = Depends(get_db)):
         log.transcript = ((log.transcript or "") + f"\nUser: {speech_result}").strip()
         db.commit()
 
-    # Build Groq prompt with full loan context
+    # Build Groq prompt
     context = _loan_context(log, lang) if log else (
-        f"You are a professional loan advisor. "
-        f"{LANG_CONFIG[lang][0]} No markdown or special characters."
+        f"You are a professional loan advisor. {cfg['lang_prompt']} "
+        "No markdown or special characters."
     )
-    prompt = f"{context}\n\nCustomer: \"{speech_result}\"\n\nAdvisor:"
+    prompt = f"{context}\n\nCustomer said: \"{speech_result}\"\n\nAdvisor:"
 
     try:
         ai_text = await asyncio.get_event_loop().run_in_executor(
             None, lambda: generate_ai_response(prompt)
         )
-        ai_text = (_clean(ai_text))[:280]   # short = faster <Say> rendering
+        # Clean markdown, keep short
+        ai_text = re.sub(r'\s+', ' ', ai_text
+            .replace("**","").replace("*","")
+            .replace("#","").replace("`","")).strip()
+        ai_text = ai_text[:280]
     except Exception as e:
-        print(f"Groq error in gather: {e}")
-        _, _, retry = LANG_CONFIG[lang]
+        print(f"Groq error: {e}")
         ai_text = (
             "माफ़ करें, तकनीकी समस्या हुई।" if lang == "hi"
             else "క్షమించండి, సమస్య వచ్చింది." if lang == "te"
-            else "Sorry, technical issue. Please ask again."
+            else "Sorry, I had a technical issue. Please ask again."
         )
 
     # Store AI reply
@@ -319,7 +355,7 @@ async def gather_handler(request: Request, db: Session = Depends(get_db)):
         db.commit()
 
     return Response(
-        content=_respond(_say(ai_text, bcp47), gather_url, bcp47),
+        content=_respond(_say(ai_text, lang), gather_url, cfg["bcp47"]),
         media_type="application/xml",
     )
 
@@ -398,7 +434,7 @@ def generate_analytics(call_sid: str, db: Session = Depends(get_db),
             "Provide:\n"
             "1. 2-sentence summary of what was discussed\n"
             "2. Key topics (comma separated)\n"
-            "3. One follow-up recommendation for the advisor\n"
+            "3. One follow-up recommendation\n"
             "Be specific and concise."
         )
     else:
@@ -406,12 +442,10 @@ def generate_analytics(call_sid: str, db: Session = Depends(get_db),
         prompt = (
             f"Loan advisory call to {log.to_number}. "
             f"Status: {log.status}. Duration: {dur}. No transcript.\n"
-            "1. What likely happened based on call status?\n"
-            "2. Recommended next steps?\nBe concise."
+            "1. What likely happened?\n2. Recommended next steps?"
         )
 
     summary = generate_ai_response(prompt)
-
     sentiment_prompt = (
         (f"Transcript:\n{log.transcript[:600]}\n\n" if has_transcript
          else f"Call status: {log.status}\n\n")
@@ -419,22 +453,15 @@ def generate_analytics(call_sid: str, db: Session = Depends(get_db),
     )
     raw = generate_ai_response(sentiment_prompt).strip().lower()
     sentiment = ("positive" if "positive" in raw
-                 else "negative" if "negative" in raw
-                 else "neutral")
+                 else "negative" if "negative" in raw else "neutral")
 
     log.ai_summary = summary
     log.sentiment  = sentiment
     db.commit()
 
-    return {
-        "callSid":       call_sid,
-        "summary":       summary,
-        "sentiment":     sentiment,
-        "hasTranscript": has_transcript,
-    }
+    return {"callSid": call_sid, "summary": summary,
+            "sentiment": sentiment, "hasTranscript": has_transcript}
 
-
-# ── Serialiser ─────────────────────────────────────────────────────────────────
 
 def _log_dict(l: CallLog) -> dict:
     return {

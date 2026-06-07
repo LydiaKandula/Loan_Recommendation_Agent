@@ -5,9 +5,9 @@ from app.services.tts_service import synthesise
 from app.models.interaction import Interaction
 from app.core.database import SessionLocal
 from app.routes.auth import decode_token
-import json, asyncio
+import json, asyncio, re
 
-router      = APIRouter()
+router       = APIRouter()
 router_extra = APIRouter()
 
 LANGUAGE_MAP = {
@@ -16,13 +16,43 @@ LANGUAGE_MAP = {
     "te": ("Telugu",  "te-IN"),
 }
 
-# Only two voices — best quality per gender across all languages
 BEST_VOICES = {"female": "ritu", "male": "shubh"}
+
+
+def _tts_clean(text: str) -> str:
+    """
+    Preprocess text before TTS so abbreviations and numbers are spoken naturally.
+    Rules:
+      - EMI/EMIs  → "E M I" (spaces, not dots — Sarvam reads spaces as brief pauses)
+      - SBI/HDFC  → spelled with spaces
+      - 12-month  → "12 month" (remove hyphen between digit and word)
+      - ₹/Rs.     → "rupees"
+      - markdown  → stripped
+    """
+    t = str(text or "")
+    # Strip markdown
+    t = re.sub(r'[*#`]', '', t)
+    # Abbreviations — spaces between letters so TTS spells them out naturally
+    t = re.sub(r'\bEMIs?\b',  'E M I', t)
+    t = re.sub(r'\bSBI\b',    'S B I', t)
+    t = re.sub(r'\bHDFC\b',   'H D F C', t)
+    t = re.sub(r'\bICICI\b',  'I C I C I', t)
+    t = re.sub(r'\bp\.a\.\b', 'per annum', t, flags=re.IGNORECASE)
+    # Hyphen between digit and letter: "12-month" → "12 month"
+    t = re.sub(r'(\d)-([A-Za-z])', r'\1 \2', t)
+    # Hyphen between letter and digit: "month-12" → "month 12"
+    t = re.sub(r'([A-Za-z])-(\d)', r'\1 \2', t)
+    # Currency
+    t = t.replace("₹", "rupees ").replace("Rs.", "rupees")
+    # Percent
+    t = t.replace("%", " percent")
+    # Collapse whitespace
+    t = re.sub(r' +', ' ', t).strip()
+    return t
 
 
 @router_extra.get("/voices")
 def get_voices():
-    """Returns the two curated voices used for all languages."""
     return {"female": ["ritu"], "male": ["shubh"]}
 
 
@@ -57,21 +87,21 @@ async def chat_ws(ws: WebSocket):
                     language_code = "en"
 
                 if token:
-                    decoded = decode_token(token)
+                    decoded      = decode_token(token)
                     auth_user_id = decoded["id"] if decoded else None
 
                 conversation_history = []
                 greeting = _build_greeting(user_context, language_code)
                 conversation_history.append({"role": "assistant", "content": greeting})
 
-                # ── Synthesise greeting in background — send text immediately ──
+                # Send text immediately
                 await ws.send_json({"type": "greeting", "text": greeting,
                                     "language": language_code, "audio": None})
 
-                # Then synthesise and send audio separately so text appears fast
+                # Synthesise audio in background
                 speaker = BEST_VOICES.get(voice_gender, "ritu")
                 audio   = await asyncio.get_event_loop().run_in_executor(
-                    None, lambda: synthesise(greeting, language_code, speaker, voice_gender)
+                    None, lambda: synthesise(_tts_clean(greeting), language_code, speaker, voice_gender)
                 )
                 if audio:
                     await ws.send_json({"type": "audio", "audio": audio})
@@ -83,7 +113,6 @@ async def chat_ws(ws: WebSocket):
 
             conversation_history.append({"role": "user", "content": user_text})
 
-            # ── Generate AI text (run in executor so WS stays responsive) ──
             ai_response = await asyncio.get_event_loop().run_in_executor(
                 None,
                 lambda: generate_ai_response_with_history(
@@ -94,14 +123,14 @@ async def chat_ws(ws: WebSocket):
             )
             conversation_history.append({"role": "assistant", "content": ai_response})
 
-            # ── Send text immediately — don't wait for TTS ──────────────────
+            # Send text immediately
             await ws.send_json({"type": "message", "text": ai_response,
                                 "language": language_code, "audio": None})
 
-            # ── Synthesise audio in background, send when ready ─────────────
+            # Synthesise in background
             speaker = BEST_VOICES.get(voice_gender, "ritu")
             audio   = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: synthesise(ai_response, language_code, speaker, voice_gender)
+                None, lambda: synthesise(_tts_clean(ai_response), language_code, speaker, voice_gender)
             )
             if audio:
                 await ws.send_json({"type": "audio", "audio": audio})
@@ -114,7 +143,8 @@ async def chat_ws(ws: WebSocket):
                                    communication_type="chat"))
                 db.commit()
             except Exception as dbe:
-                db.rollback(); print(f"DB: {dbe}")
+                db.rollback()
+                print(f"DB: {dbe}")
 
     except WebSocketDisconnect:
         print("Chat WS disconnected")
@@ -141,26 +171,34 @@ def _build_greeting(user_context, lang):
         if not user_context:
             return "నమస్కారం! నేను మీ లోన్ రికమెండేషన్ అసిస్టెంట్‌ని. మీరు లోన్‌కు సంబంధించి ఏ విషయమైనా అడగవచ్చు!"
         g = f"నమస్కారం{' ' + name if name else ''}! మీ లోన్ అప్లికేషన్ పరిశీలించాను."
-        if bank and emi: g += f" {bank} నుండి {loan_type} లోన్ మీకు సరిపోతుంది, నెలవారీ EMI {float(emi):,.0f} రూపాయలు."
-        if credit: g += " మీ క్రెడిట్ స్కోర్ బాగుంది!" if int(credit) >= 700 else " క్రెడిట్ స్కోర్ మెరుగు పరచుకోవడానికి సహాయం చేస్తాను."
+        if bank and emi:
+            g += f" {bank} నుండి {loan_type} లోన్ మీకు సరిపోతుంది, నెలవారీ EMI {float(emi):,.0f} రూపాయలు."
+        if credit:
+            g += " మీ క్రెడిట్ స్కోర్ బాగుంది!" if int(credit) >= 700 else " క్రెడిట్ స్కోర్ మెరుగు పరచుకోవడానికి సహాయం చేస్తాను."
         return g + " ఏదైనా సందేహాలుంటే అడగండి!"
 
     if lang == "hi":
         if not user_context:
             return "नमस्ते! मैं आपका लोन रिकमेंडेशन असिस्टेंट हूँ। कोई भी सवाल पूछें!"
         g = f"नमस्ते{' ' + name if name else ''}! मैंने आपकी लोन एप्लिकेशन देखी है।"
-        if bank and emi: g += f" {bank} से {loan_type} लोन उपयुक्त है, EMI {float(emi):,.0f} रुपए।"
-        if credit: g += " क्रेडिट स्कोर अच्छा है!" if int(credit) >= 700 else " क्रेडिट स्कोर सुधारने में मदद कर सकता हूँ।"
+        if bank and emi:
+            g += f" {bank} से {loan_type} लोन उपयुक्त है, EMI {float(emi):,.0f} रुपए।"
+        if credit:
+            g += " क्रेडिट स्कोर अच्छा है!" if int(credit) >= 700 else " क्रेडिट स्कोर सुधारने में मदद कर सकता हूँ।"
         return g + " कोई भी सवाल पूछें!"
 
     if not user_context:
         return "Hello! I'm your Loan Recommendation Assistant. Ask me anything about loans, EMI, or eligibility!"
     parts = [f"Hi{' ' + name if name else ''}! I've reviewed your application."]
     if bank and emi:
-        parts.append(f"A {loan_type} loan from {bank} — EMI of {float(emi):,.0f} rupees/month" + (f" over {tenure} months." if tenure else "."))
+        parts.append(f"A {loan_type} loan from {bank} — EMI of {float(emi):,.0f} rupees/month"
+                     + (f" over {tenure} months." if tenure else "."))
     elif amount:
-        parts.append(f"Applied for {float(amount):,.0f} rupee {loan_type} loan" + (f" over {tenure} months." if tenure else "."))
+        parts.append(f"Applied for {float(amount):,.0f} rupee {loan_type} loan"
+                     + (f" over {tenure} months." if tenure else "."))
     if credit:
-        parts.append("Credit score looks strong!" if int(credit) >= 750 else "Credit score is decent." if int(credit) >= 650 else "I can also help improve your credit score.")
+        parts.append("Credit score looks strong!" if int(credit) >= 750
+                     else "Credit score is decent." if int(credit) >= 650
+                     else "I can also help improve your credit score.")
     parts.append("Feel free to ask anything!")
     return " ".join(parts)
