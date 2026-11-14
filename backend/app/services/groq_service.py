@@ -13,7 +13,7 @@ def generate_ai_response(user_message: str) -> str:
     try:
         client = get_client()
         completion = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b",
             messages=[
                 {
                     "role": "system",
@@ -27,7 +27,11 @@ def generate_ai_response(user_message: str) -> str:
                 {"role": "user", "content": str(user_message)}
             ],
             temperature=0.5,
-            max_tokens=400
+            max_tokens=512,
+            extra_body={
+                "reasoning_effort": "low",
+                "include_reasoning": False
+            }
         )
         return completion.choices[0].message.content
     except ValueError as e:
@@ -48,10 +52,14 @@ def generate_ai_response_with_history(
         messages = [{"role": "system", "content": system_content}] + conversation_history
 
         completion = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b",
             messages=messages,
             temperature=0.6,
-            max_tokens=400
+            max_tokens=512,
+            extra_body={
+                "reasoning_effort": "low",
+                "include_reasoning": False
+            }
         )
         return completion.choices[0].message.content
     except ValueError as e:
