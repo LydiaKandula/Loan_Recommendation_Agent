@@ -103,8 +103,7 @@ async def chat_ws(ws: WebSocket):
                 audio   = await asyncio.get_event_loop().run_in_executor(
                     None, lambda: synthesise(_tts_clean(greeting), language_code, speaker, voice_gender)
                 )
-                if audio:
-                    await ws.send_json({"type": "audio", "audio": audio})
+                await ws.send_json({"type": "audio", "audio": audio})
                 continue
 
             user_text = payload.get("text", "").strip()
@@ -132,8 +131,7 @@ async def chat_ws(ws: WebSocket):
             audio   = await asyncio.get_event_loop().run_in_executor(
                 None, lambda: synthesise(_tts_clean(ai_response), language_code, speaker, voice_gender)
             )
-            if audio:
-                await ws.send_json({"type": "audio", "audio": audio})
+            await ws.send_json({"type": "audio", "audio": audio})
 
             # Persist
             try:
