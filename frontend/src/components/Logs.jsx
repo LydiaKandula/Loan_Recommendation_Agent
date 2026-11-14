@@ -1,15 +1,13 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 const API = "http://127.0.0.1:8000";
 
 export default function Logs({ authToken, isActive }) {
   const [logs,    setLogs]    = useState([]);
   const [loading, setLoading] = useState(false);
-  const fetchedRef = useRef(false);
 
   const headers = authToken ? { Authorization:`Bearer ${authToken}` } : {};
 
   const fetchLogs = () => {
-    setLoading(true);
     fetch(`${API}/logs`, { headers })
       .then(r => r.ok ? r.json() : [])
       .then(setLogs)

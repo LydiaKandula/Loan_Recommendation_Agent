@@ -73,10 +73,8 @@ export default function VoiceCalls({ authToken, lastApplication, isActive }) {
     "Content-Type":"application/json",
     ...(authToken ? { Authorization:`Bearer ${authToken}` } : {}),
   });
-  const headers = getHeaders();
 
   const fetchLogs = () => {
-    setLoading(true);
     fetch(`${API}/calls/logs`, { headers: getHeaders() })
       .then(r => r.ok ? r.json() : [])
       .then(setLogs).catch(console.error)
@@ -87,9 +85,6 @@ export default function VoiceCalls({ authToken, lastApplication, isActive }) {
   useEffect(() => {
     if (isActive) fetchLogs();
   }, [isActive]); // eslint-disable-line
-
-  // Also fetch on first mount (isActive may already be true)
-  useEffect(() => { fetchLogs(); }, []); // eslint-disable-line
 
   const initiateCall = async () => {
     setCallError(""); setCallSuccess("");
