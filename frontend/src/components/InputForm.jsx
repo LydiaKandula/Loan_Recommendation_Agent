@@ -17,8 +17,7 @@ const COUNTRY_CODES = [
 // When defined inside, React treats it as a new component type on every
 // re-render (every keystroke), so it unmounts+remounts the input element
 // and the user loses focus after typing a single character.
-function Field({ label, name, type = "text", min, max, step, placeholder,
-                 value, onChange, error, children }) {
+function Field({ label, type = "text", min, max, step, placeholder, value, onChange, error, children }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
       <label style={lblSx}>{label}</label>

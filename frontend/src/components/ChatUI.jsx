@@ -46,6 +46,7 @@ export default function ChatUI({ lastApplication, authToken, isActive }) {
   const bottomRef     = useRef(null);
   const ctxSentRef    = useRef(false);
   const audioCtxRef   = useRef(null);
+  const pendingSpeechTextRef = useRef("");
   const langRef       = useRef(language);
   const genderRef     = useRef(voiceGender);
   const voiceRef      = useRef(voiceEnabled);
@@ -56,13 +57,19 @@ export default function ChatUI({ lastApplication, authToken, isActive }) {
   useEffect(() => { voiceRef.current   = voiceEnabled; }, [voiceEnabled]);
   useEffect(() => { isActiveRef.current = isActive;    }, [isActive]);
 
-  /* ── Audio helpers ── */
   const stopAudio = useCallback(() => {
-    try { audioCtxRef.current?.close(); } catch {}
-    audioCtxRef.current = null;
-    window.speechSynthesis?.cancel();
-    setIsSpeaking(false);
-  }, []);
+  pendingSpeechTextRef.current = "";
+
+  try {
+    audioCtxRef.current?.close();
+  } catch (error) {
+    console.warn("Error closing audio context:", error);
+  }
+
+  audioCtxRef.current = null;
+  window.speechSynthesis?.cancel();
+  setIsSpeaking(false);
+}, []);
 
   const playAudio = useCallback((text, b64) => {
     // ✅ KEY FIX: never play audio when chat tab is not visible
@@ -98,12 +105,10 @@ export default function ChatUI({ lastApplication, authToken, isActive }) {
     }
   }, [stopAudio]);
 
-  // Stop audio when tab switches away
-  useEffect(() => {
-    if (!isActive) stopAudio();
-  }, [isActive, stopAudio]);
 
   /* ── WebSocket — only open when chat tab is active ── */
+  const addMsg = useCallback((role, text) =>
+    setMessages(p => [...p, { id: Date.now() + Math.random(), role, text }]), []);
   const sendCtx = useCallback((ws, lang, gender) => {
     if (ws.readyState !== WebSocket.OPEN) return;
     ws.send(JSON.stringify({
@@ -126,29 +131,51 @@ export default function ChatUI({ lastApplication, authToken, isActive }) {
       }
     };
     ws.onmessage = (e) => {
-      try {
-        const d = JSON.parse(e.data);
-        if (d.type === "audio") { playAudio("", d.audio); return; }
-        setIsTyping(false);
-        if (d.type === "greeting" || d.type === "message") addMsg("ai", d.text);
-        else if (d.type === "error") addMsg("ai", `⚠️ ${d.text}`);
-      } catch { setIsTyping(false); addMsg("ai", e.data); }
-    };
+  try {
+    const d = JSON.parse(e.data);
+
+    if (d.type === "audio") {
+      const fallbackText = pendingSpeechTextRef.current;
+      pendingSpeechTextRef.current = "";
+
+      // Use Sarvam audio when available.
+      // Otherwise, use browser speech synthesis.
+      playAudio(fallbackText, d.audio);
+      return;
+    }
+
+    setIsTyping(false);
+
+    if (d.type === "greeting" || d.type === "message") {
+      pendingSpeechTextRef.current = d.text || "";
+      addMsg("ai", d.text);
+    } else if (d.type === "error") {
+      addMsg("ai", `⚠️ ${d.text}`);
+    }
+  } catch {
+    setIsTyping(false);
+    addMsg("ai", e.data);
+  }
+};
+
     ws.onerror = () => setWsStatus("closed");
-    ws.onclose = () => { setWsStatus("closed"); setIsTyping(false); };
-  }, [sendCtx, playAudio]); // eslint-disable-line
-
-  const addMsg = useCallback((role, text) =>
-    setMessages(p => [...p, { id: Date.now() + Math.random(), role, text }]), []);
-
+    ws.onclose = () => {
+      setWsStatus("closed");
+      setIsTyping(false);
+    };
+    }, [sendCtx, playAudio, addMsg]);
   // ✅ KEY FIX: only connect when this tab is active — prevents login-time audio
   useEffect(() => {
-    if (!isActive) return;
-    ctxSentRef.current = false;
-    connectWS();
-    // Do NOT close WS on tab switch (keep connection alive, just stop audio above)
-    return () => {};
-  }, [isActive]); // eslint-disable-line
+  if (!isActive) return;
+
+  ctxSentRef.current = false;
+  connectWS();
+
+  // Stop audio when leaving the chat tab or unmounting.
+  return () => {
+    stopAudio();
+  };
+}, [isActive, connectWS, stopAudio]);
 
   // Cleanup on component unmount
   useEffect(() => {
@@ -161,7 +188,11 @@ export default function ChatUI({ lastApplication, authToken, isActive }) {
 
   // STT reinit on language change
   useEffect(() => {
-    try { recRef.current?.stop(); } catch {}
+    try {
+  recRef.current?.stop();
+} catch {
+  // Recognition may already be stopped.
+}
     try {
       const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SR) { recRef.current = null; return; }
@@ -191,7 +222,15 @@ export default function ChatUI({ lastApplication, authToken, isActive }) {
   const handleVoice = useCallback(() => {
     const r = recRef.current;
     if (!r) { alert("Speech recognition not supported. Try Chrome or Edge."); return; }
-    if (isListening) { try { r.stop(); } catch {} setIsListening(false); return; }
+    if (isListening) {
+  try {
+    r.stop();
+  } catch {
+    // Recognition may already be stopped.
+  }
+  setIsListening(false);
+  return;
+}
     stopAudio();
     r.lang = LANG_CFG[language]?.stt || "en-IN";
     r.onresult = (e) => { setIsListening(false); sendMsg(e.results[0][0].transcript); };
